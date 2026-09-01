@@ -7,6 +7,7 @@ import com.aml.system.repository.TenantRuleConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('TENANT_ADMIN')") // <--- Only Tenant Admins can touch these rules
 public class SystemAdminController {
 
     private final TenantRuleConfigRepository tenantRuleConfigRepository;

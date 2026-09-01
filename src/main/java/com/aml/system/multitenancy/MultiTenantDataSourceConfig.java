@@ -14,15 +14,14 @@ import javax.sql.DataSource;
 @Configuration
 public class MultiTenantDataSourceConfig {
 
+    // 1. Explicitly build the Master connection using the properties from application-dev.properties
     @Bean
-    @Primary
-    @ConfigurationProperties("spring.datasource.master")
+    @ConfigurationProperties("spring.datasource")
     public DataSourceProperties masterDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean(name = "masterDataSource")
-    @Primary
     public DataSource masterDataSource() {
         return masterDataSourceProperties()
                 .initializeDataSourceBuilder()
@@ -30,13 +29,12 @@ public class MultiTenantDataSourceConfig {
                 .build();
     }
 
+    // 2. Build the Router and give it the Master connection as the default
     @Bean(name = "routingDataSource")
+    @Primary // Spring Security and Spring Batch will automatically use this Router
     public TenantRoutingDataSource routingDataSource(@Qualifier("masterDataSource") DataSource masterDataSource) {
         TenantRoutingDataSource routingDataSource = new TenantRoutingDataSource();
-
-        // If no tenant is provided in the header, default to the master DB
         routingDataSource.setDefaultTargetDataSource(masterDataSource);
-
         return routingDataSource;
     }
 

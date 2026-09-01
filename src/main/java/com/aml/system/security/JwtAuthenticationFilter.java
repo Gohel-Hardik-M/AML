@@ -1,26 +1,29 @@
 package com.aml.system.security;
 
 import com.aml.system.multitenancy.TenantContextHolder;
-import com.aml.system.service.JwtService;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+    private final JwtUtil jwtUtil;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
-        this.jwtService = jwtService;
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
     }
 
     @Override
@@ -31,28 +34,45 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String loginTenantHeader = request.getHeader("X-Tenant-ID");
+
+        // 1. If there is no token, continue the filter chain (Spring Security will block it later if required)
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String jwt = authHeader.substring(7);
-                String tenantId = jwtService.extractTenantId(jwt);
-                String userEmail = jwtService.extractUsername(jwt);
+            final String jwt = authHeader.substring(7);
 
-                TenantContextHolder.setTenantId(tenantId);
+            // 2. Validate the token
+            if (jwtUtil.isTokenValid(jwt) && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    if (jwtService.isTokenValid(jwt)) {
-                        UsernamePasswordAuthenticationToken authToken =
-                                new UsernamePasswordAuthenticationToken(userEmail, null, jwtService.extractAuthorities(jwt));
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                    }
+                Claims claims = jwtUtil.extractAllClaims(jwt);
+                String username = claims.getSubject();
+                String tenantId = claims.get("tenantId", String.class);
+                String role = claims.get("role", String.class);
+
+                // 3. CRITICAL: Set the database routing context for this specific request!
+                if (tenantId != null) {
+                    TenantContextHolder.setTenantId(tenantId);
                 }
-            } else if (loginTenantHeader != null) {
-                TenantContextHolder.setTenantId(loginTenantHeader);
+
+                // 4. Tell Spring Security who this user is and what their role is
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        username,
+                        null,
+                        Collections.singletonList(new SimpleGrantedAuthority(role))
+                );
+
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
+
+            // 5. Continue processing the request
             filterChain.doFilter(request, response);
+
         } finally {
+            // 6. ALWAYS clear the context after the request finishes to prevent data leaks!
             TenantContextHolder.clear();
         }
     }

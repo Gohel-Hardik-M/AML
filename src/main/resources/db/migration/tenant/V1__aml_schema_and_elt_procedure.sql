@@ -6,14 +6,17 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 1. SECURITY, USERS & AUDIT TRAIL
 CREATE TABLE IF NOT EXISTS aml_users (
                                          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) NOT NULL UNIQUE,
+    tenant_id VARCHAR(64) NOT NULL,
+    username VARCHAR(128) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL,
+    full_name VARCHAR(128) NOT NULL,
+    role VARCHAR(64) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_locked BOOLEAN NOT NULL DEFAULT FALSE,
     is_temporary_password BOOLEAN NOT NULL DEFAULT TRUE,
     failed_attempts INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT idx_user_tenant_username UNIQUE (tenant_id, username)
     );
 
 CREATE TABLE IF NOT EXISTS aml_system_audit_logs (

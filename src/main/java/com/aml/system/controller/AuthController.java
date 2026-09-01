@@ -1,39 +1,59 @@
 package com.aml.system.controller;
 
-import com.aml.system.dto.ApiResponse;
-import com.aml.system.dto.auth.AuthRequestDto;
-import com.aml.system.dto.auth.AuthResponseDto;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.aml.system.dto.auth.LoginRequestDto;
+import com.aml.system.dto.auth.LoginResponseDto;
+import com.aml.system.dto.auth.PasswordResetDto;
+import com.aml.system.multitenancy.TenantContextHolder;
+import com.aml.system.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.UUID;
-
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponseDto>> login(@RequestBody AuthRequestDto request) {
-        log.info("User login attempt for username: [{}] on Tenant: [{}]", request.getUsername(), request.getTenantId());
+    public ResponseEntity<LoginResponseDto> login(
+            @Valid @RequestBody LoginRequestDto request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            // 1. Set the database context BEFORE the transactional service is called
+            TenantContextHolder.setTenantId(request.getTenantId());
 
-        // Simulated JWT issuance for MVP v1
-        AuthResponseDto authResponse = AuthResponseDto.builder()
-                .token("jwt-mock-token-" + UUID.randomUUID())
-                .tokenType("Bearer")
-                .tenantId(request.getTenantId())
-                .username(request.getUsername())
-                .roles(List.of("ROLE_COMPLIANCE_OFFICER", "ROLE_ANALYST"))
-                .expiresIn(86400)
-                .build();
+            // 2. Call the service
+            LoginResponseDto response = authService.login(request, httpRequest);
+            return ResponseEntity.ok(response);
 
-        return ResponseEntity.ok(ApiResponse.success(authResponse, "Authentication successful"));
+        } finally {
+            // 3. Always clean up!
+            TenantContextHolder.clear();
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(
+            @Valid @RequestBody PasswordResetDto request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            // 1. Set context before transaction
+            TenantContextHolder.setTenantId(request.getTenantId());
+
+            // 2. Call the service
+            authService.resetPassword(request, httpRequest);
+            return ResponseEntity.ok("Password updated successfully. You can now log in.");
+
+        } finally {
+            TenantContextHolder.clear();
+        }
     }
 }

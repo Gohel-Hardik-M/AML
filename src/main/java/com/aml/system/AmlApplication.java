@@ -1,4 +1,4 @@
-package com.tss.AML;
+package com.aml.system;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

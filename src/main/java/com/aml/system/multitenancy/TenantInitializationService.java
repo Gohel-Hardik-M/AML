@@ -9,6 +9,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -19,27 +20,28 @@ public class TenantInitializationService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantInitializationService.class);
 
+    // Grab the explicitly named master database connection
     @Autowired
     @Qualifier("masterDataSource")
     private DataSource masterDataSource;
 
     @Autowired
-    @Qualifier("routingDataSource")
     private TenantRoutingDataSource routingDataSource;
 
+    @Order(1)
     @EventListener(ApplicationReadyEvent.class)
     public void initializeTenantsOnStartup() {
         log.info("=== Starting Multi-Tenant Database Initialization ===");
 
-        // 1. Run Flyway against the Master Database only
         log.info("Migrating Master Database...");
         Flyway masterFlyway = Flyway.configure()
                 .dataSource(masterDataSource)
                 .locations("classpath:db/migration/master")
+                .baselineOnMigrate(true)
+                .baselineVersion("0")// <--- ADDED THIS LINE
                 .load();
         masterFlyway.migrate();
 
-        // 2. Fetch all registered banks/tenants from the Master DB
         JdbcTemplate masterJdbcTemplate = new JdbcTemplate(masterDataSource);
         List<Map<String, Object>> tenants = masterJdbcTemplate.queryForList(
                 "SELECT tenant_id, db_url, db_username, db_password FROM aml_tenant_registry WHERE is_active = true"
@@ -66,6 +68,8 @@ public class TenantInitializationService {
             Flyway tenantFlyway = Flyway.configure()
                     .dataSource(url, username, password)
                     .locations("classpath:db/migration/tenant")
+                    .baselineOnMigrate(true)
+                    .baselineVersion("0")// <--- ADDED THIS LINE
                     .load();
             tenantFlyway.migrate();
         }
