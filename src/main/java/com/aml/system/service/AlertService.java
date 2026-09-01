@@ -10,7 +10,7 @@ import com.aml.system.model.Alert;
 import com.aml.system.model.CaseEntity;
 import com.aml.system.model.enums.AlertSeverity;
 import com.aml.system.model.enums.CaseStatus;
-import com.aml.system.multitenancy.TenantContext;
+import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.AlertRepository;
 import com.aml.system.repository.CaseRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class AlertService {
 
     @Transactional(readOnly = true)
     public Page<AlertResponseDto> getAlerts(AlertSeverity severity, Boolean isReviewed, Pageable pageable) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         Page<Alert> page;
         if (severity != null) {
             page = alertRepository.findByTenantIdAndSeverity(tenantId, severity, pageable);
@@ -48,7 +48,7 @@ public class AlertService {
 
     @Transactional
     public CaseResponseDto escalateAlertToCase(UUID alertId, String analystId) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         Alert alert = alertRepository.findByAlertIdAndTenantId(alertId, tenantId)
                 .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.ALERT_NOT_FOUND, "Alert not found for ID: " + alertId));
 

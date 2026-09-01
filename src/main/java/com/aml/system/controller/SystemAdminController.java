@@ -2,7 +2,7 @@ package com.aml.system.controller;
 
 import com.aml.system.dto.ApiResponse;
 import com.aml.system.model.TenantRuleConfig;
-import com.aml.system.multitenancy.TenantContext;
+import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.TenantRuleConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ public class SystemAdminController {
 
     @GetMapping("/rules")
     public ResponseEntity<ApiResponse<List<TenantRuleConfig>>> getTenantRules() {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         List<TenantRuleConfig> configs = tenantRuleConfigRepository.findByTenantIdAndIsEnabledTrue(tenantId);
         return ResponseEntity.ok(ApiResponse.success(configs, "Retrieved tenant rule configurations"));
     }
@@ -31,7 +31,7 @@ public class SystemAdminController {
             @PathVariable String ruleCode,
             @RequestBody TenantRuleConfig updatedConfig
     ) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         TenantRuleConfig config = tenantRuleConfigRepository.findByTenantIdAndRuleCode(tenantId, ruleCode)
                 .orElseGet(() -> TenantRuleConfig.builder()
                         .tenantId(tenantId)
