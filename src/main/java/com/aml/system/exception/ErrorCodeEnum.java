@@ -45,4 +45,7 @@ public enum ErrorCodeEnum {
         this.defaultMessage = defaultMessage;
         this.httpStatus = httpStatus;
     }
+
+
+
 }
