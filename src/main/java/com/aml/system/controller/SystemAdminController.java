@@ -2,11 +2,12 @@ package com.aml.system.controller;
 
 import com.aml.system.dto.ApiResponse;
 import com.aml.system.model.TenantRuleConfig;
-import com.aml.system.multitenancy.TenantContext;
+import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.TenantRuleConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,13 +16,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('TENANT_ADMIN')") // <--- Only Tenant Admins can touch these rules
 public class SystemAdminController {
 
     private final TenantRuleConfigRepository tenantRuleConfigRepository;
 
     @GetMapping("/rules")
     public ResponseEntity<ApiResponse<List<TenantRuleConfig>>> getTenantRules() {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         List<TenantRuleConfig> configs = tenantRuleConfigRepository.findByTenantIdAndIsEnabledTrue(tenantId);
         return ResponseEntity.ok(ApiResponse.success(configs, "Retrieved tenant rule configurations"));
     }
@@ -31,7 +33,7 @@ public class SystemAdminController {
             @PathVariable String ruleCode,
             @RequestBody TenantRuleConfig updatedConfig
     ) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         TenantRuleConfig config = tenantRuleConfigRepository.findByTenantIdAndRuleCode(tenantId, ruleCode)
                 .orElseGet(() -> TenantRuleConfig.builder()
                         .tenantId(tenantId)

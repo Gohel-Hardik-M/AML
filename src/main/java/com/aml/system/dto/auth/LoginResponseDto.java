@@ -5,17 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponseDto {
+public class LoginResponseDto {
     private String token;
-    private String tokenType;
-    private String tenantId;
-    private String username;
-    private List<String> roles;
-    private long expiresIn;
+    private Boolean isTemporaryPassword;
+    private String message;
 }

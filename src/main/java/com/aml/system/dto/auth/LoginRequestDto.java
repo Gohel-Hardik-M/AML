@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthRequestDto {
-    private String tenantId;
+public class LoginRequestDto {
     private String username;
     private String password;
+    private String tenantId; // Specifies the tenant/bank database route (e.g., "HDFC")
 }

@@ -4,7 +4,7 @@ import com.aml.system.dto.batch.BatchJobResponseDto;
 import com.aml.system.dto.batch.BatchUploadRequestDto;
 import com.aml.system.exception.AmlBusinessException;
 import com.aml.system.exception.ErrorCodeEnum;
-import com.aml.system.multitenancy.TenantContext;
+import com.aml.system.multitenancy.TenantContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -37,7 +37,7 @@ public class AmlBatchService {
      * Launches the Spring Batch Chunk-Oriented ETL Pipeline for up to 10,000,000 records.
      */
     public BatchJobResponseDto launchBatchJob(String filePath, BatchUploadRequestDto requestDto) {
-        String tenantId = TenantContext.getTenantId() != null ? TenantContext.getTenantId() : requestDto.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId() != null ? TenantContextHolder.getTenantId() : requestDto.getTenantId();
         if (tenantId == null) {
             throw new AmlBusinessException(ErrorCodeEnum.TENANT_NOT_FOUND, "Tenant context missing for batch job launch");
         }
@@ -96,7 +96,7 @@ public class AmlBatchService {
     @Async
     @Transactional
     public CompletableFuture<Void> executeEltPipeline(UUID batchId) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         log.info("Initiating PostgreSQL in-database ELT procedure CALL process_batch_transactions(?) for batchId: {}, tenant: {}", batchId, tenantId);
 
         try {

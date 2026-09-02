@@ -7,7 +7,7 @@ import com.aml.system.exception.ErrorCodeEnum;
 import com.aml.system.mapper.CaseMapper;
 import com.aml.system.model.CaseEntity;
 import com.aml.system.model.enums.CaseStatus;
-import com.aml.system.multitenancy.TenantContext;
+import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.CaseRepository;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class CaseService {
 
     @Transactional(readOnly = true)
     public Page<CaseResponseDto> getCases(CaseStatus status, Pageable pageable) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         Page<CaseEntity> page = (status != null) ?
                 caseRepository.findByTenantIdAndStatus(tenantId, status, pageable) :
                 caseRepository.findAll(pageable);
@@ -41,7 +41,7 @@ public class CaseService {
 
     @Transactional(readOnly = true)
     public CaseResponseDto getCaseById(UUID caseId) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         CaseEntity caseEntity = caseRepository.findByCaseIdAndTenantId(caseId, tenantId)
                 .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.CASE_NOT_FOUND, "Case not found for ID: " + caseId));
         return caseMapper.toDto(caseEntity);
@@ -51,7 +51,7 @@ public class CaseService {
 
     @Transactional
     public CaseResponseDto updateCase(UUID caseId, CaseUpdateRequestDto updateRequest) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContextHolder.getTenantId();
         CaseEntity caseEntity = caseRepository.findByCaseIdAndTenantId(caseId, tenantId)
                 .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.CASE_NOT_FOUND, "Case not found for ID: " + caseId));
 
