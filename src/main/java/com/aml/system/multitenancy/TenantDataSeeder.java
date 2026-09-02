@@ -4,12 +4,17 @@ import com.aml.system.model.UserEntity;
 import com.aml.system.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -19,51 +24,69 @@ public class TenantDataSeeder {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate masterJdbcTemplate;
 
-    public TenantDataSeeder(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    // Inject the masterDataSource so we can read the central tenant registry
+    public TenantDataSeeder(UserRepository userRepository,
+                            PasswordEncoder passwordEncoder,
+                            @Qualifier("masterDataSource") DataSource masterDataSource) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.masterJdbcTemplate = new JdbcTemplate(masterDataSource);
     }
 
-    // @Order(2) ensures this runs AFTER your TenantInitializationService (which should be @Order(1))
     @Order(2)
     @EventListener(ApplicationReadyEvent.class)
     public void seedAdminUsers() {
-        // For Sprint 1, we are hardcoding the seed for HDFC.
-        // Later, this will loop through all tenants dynamically.
-        String tenantId = "HDFC";
-        String adminUsername = "admin_hdfc";
 
-        try {
-            // 1. Switch connection to the HDFC database
-            TenantContextHolder.setTenantId(tenantId);
+        // 1. Dynamically fetch all active tenants from the master registry
+        List<Map<String, Object>> tenants = masterJdbcTemplate.queryForList(
+                "SELECT tenant_id FROM aml_tenant_registry WHERE is_active = true"
+        );
 
-            // 2. Check if the admin already exists to prevent duplicate entries
-            Optional<UserEntity> existingAdmin = userRepository.findByTenantIdAndUsername(tenantId, adminUsername);
+        if (tenants.isEmpty()) {
+            log.info("No active tenants found for seeding.");
+            return;
+        }
 
-            if (existingAdmin.isEmpty()) {
-                log.info("Seeding default System Admin for tenant: {}", tenantId);
+        // 2. Loop through every single bank in the system
+        for (Map<String, Object> tenantRow : tenants) {
+            String tenantId = (String) tenantRow.get("tenant_id");
+            String adminUsername = "admin_" + tenantId.toLowerCase();
 
-                UserEntity admin = UserEntity.builder()
-                        .tenantId(tenantId)
-                        .username(adminUsername)
-                        .passwordHash(passwordEncoder.encode("admin123")) // Secure BCrypt Hash
-                        .fullName("HDFC System Administrator")
-                        .role("TENANT_ADMIN")
-                        .isActive(true)
-                        .build();
+            try {
+                // 3. Switch connection to this specific tenant's database
+                TenantContextHolder.setTenantId(tenantId);
 
-                userRepository.save(admin);
-                log.info("System Admin created successfully!");
-            } else {
-                log.info("Admin already exists for tenant: {}. Skipping seed.", tenantId);
+                Optional<UserEntity> existingAdmin = userRepository.findByTenantIdAndUsername(tenantId, adminUsername);
+
+                if (existingAdmin.isEmpty()) {
+                    log.info("Seeding default Bank Admin for tenant: {}", tenantId);
+
+                    UserEntity admin = UserEntity.builder()
+                            .tenantId(tenantId)
+                            .username(adminUsername)
+                            .passwordHash(passwordEncoder.encode("admin123"))
+                            .fullName(tenantId + " Administrator")
+                            .role("TENANT_ADMIN")
+                            .isActive(true)
+                            .isLocked(false)
+                            .failedAttempts(0)
+                            .isTemporaryPassword(true) // Forces them to reset it!
+                            .build();
+
+                    userRepository.save(admin);
+                    log.info("Bank Admin created successfully for {}!", tenantId);
+                } else {
+                    log.info("Admin already exists for tenant: {}. Skipping seed.", tenantId);
+                }
+
+            } catch (Exception e) {
+                log.error("Failed to seed admin user for tenant {}: {}", tenantId, e.getMessage());
+            } finally {
+                // 4. Always clear the routing context before the next loop iteration!
+                TenantContextHolder.clear();
             }
-
-        } catch (Exception e) {
-            log.error("Failed to seed admin user for tenant {}: {}", tenantId, e.getMessage());
-        } finally {
-            // 3. Always clear the routing context!
-            TenantContextHolder.clear();
         }
     }
 }

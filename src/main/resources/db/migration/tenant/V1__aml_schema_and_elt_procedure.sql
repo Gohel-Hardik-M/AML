@@ -1,6 +1,3 @@
--- =========================================================================================
--- ISOLATED TENANT SCHEMA & ELT PROCEDURE (Runs per Bank DB)
--- =========================================================================================
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 1. SECURITY, USERS & AUDIT TRAIL
@@ -8,6 +5,7 @@ CREATE TABLE IF NOT EXISTS aml_users (
                                          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id VARCHAR(64) NOT NULL,
     username VARCHAR(128) NOT NULL,
+    email VARCHAR(128) UNIQUE NOT NULL, -- Added for Async Email Onboarding
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(128) NOT NULL,
     role VARCHAR(64) NOT NULL,
@@ -19,17 +17,21 @@ CREATE TABLE IF NOT EXISTS aml_users (
     CONSTRAINT idx_user_tenant_username UNIQUE (tenant_id, username)
     );
 
-CREATE TABLE IF NOT EXISTS aml_system_audit_logs (
-                                                     log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(128),
-    action_type VARCHAR(64) NOT NULL,
-    affected_record_id VARCHAR(128),
-    ip_address VARCHAR(64),
-    details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- 2. RULES CONFIGURATION (Matched exactly to TenantRuleConfig.java)
+CREATE TABLE IF NOT EXISTS aml_tenant_rules (
+                                                config_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(64) NOT NULL,
+    rule_code VARCHAR(64) NOT NULL,
+    is_enabled BOOLEAN DEFAULT true,
+    threshold_amount NUMERIC(19,4),
+    window_minutes INT,
+    max_count INT,
+    percentage_deviation NUMERIC(5,2),
+    custom_parameters_json TEXT,
+    CONSTRAINT uk_tenant_rule UNIQUE (tenant_id, rule_code)
     );
 
--- 2. BATCH & INGESTION PIPELINE
+-- 3. BATCH & INGESTION PIPELINE
 CREATE TABLE IF NOT EXISTS aml_batches (
                                            batch_id UUID PRIMARY KEY,
                                            file_name VARCHAR(255) NOT NULL,
@@ -88,17 +90,7 @@ CREATE TABLE IF NOT EXISTS aml_invalid_transactions_dlq (
                                                             failed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. RULES & ALERTS
-CREATE TABLE IF NOT EXISTS aml_tenant_rules (
-                                                rule_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    rule_code VARCHAR(64) NOT NULL,
-    rule_name VARCHAR(255) NOT NULL,
-    config_thresholds JSONB NOT NULL,
-    default_severity VARCHAR(32) NOT NULL DEFAULT 'MEDIUM',
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
+-- 4. ALERTS & CASE MANAGEMENT
 CREATE TABLE IF NOT EXISTS aml_alerts (
                                           alert_id UUID PRIMARY KEY,
                                           transaction_id UUID NOT NULL,
@@ -116,7 +108,16 @@ CREATE TABLE IF NOT EXISTS aml_alerts (
 
 CREATE INDEX IF NOT EXISTS idx_alert_customer ON aml_alerts (customer_id, created_at);
 
--- 4. CASE MANAGEMENT & SAR FILINGS
+CREATE TABLE IF NOT EXISTS aml_system_audit_logs (
+                                                     log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                                     user_id VARCHAR(128),
+                                                     action_type VARCHAR(64) NOT NULL,
+                                                     affected_record_id VARCHAR(128),
+                                                     ip_address VARCHAR(64),
+                                                     details TEXT,
+                                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
 CREATE TABLE IF NOT EXISTS aml_cases (
                                          case_id UUID PRIMARY KEY,
                                          customer_id VARCHAR(128) NOT NULL,

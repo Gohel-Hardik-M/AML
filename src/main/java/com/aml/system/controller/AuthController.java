@@ -2,9 +2,11 @@ package com.aml.system.controller;
 
 import com.aml.system.dto.auth.LoginRequestDto;
 import com.aml.system.dto.auth.LoginResponseDto;
+import com.aml.system.dto.auth.MasterLoginRequestDto;
 import com.aml.system.dto.auth.PasswordResetDto;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.service.AuthService;
+import com.aml.system.service.MasterAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +17,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final MasterAuthService masterAuthService;
 
-    public AuthController(AuthService authService) {
+    // Injected both services here
+    public AuthController(AuthService authService, MasterAuthService masterAuthService) {
         this.authService = authService;
+        this.masterAuthService = masterAuthService;
     }
 
     @PostMapping("/login")
@@ -55,5 +60,15 @@ public class AuthController {
         } finally {
             TenantContextHolder.clear();
         }
+    }
+
+    // --- NEW ENDPOINT FOR GLOBAL SAAS ADMIN ---
+    @PostMapping("/master/login")
+    public ResponseEntity<LoginResponseDto> masterLogin(
+            @Valid @RequestBody MasterLoginRequestDto request,
+            HttpServletRequest httpRequest
+    ) {
+        LoginResponseDto response = masterAuthService.masterLogin(request, httpRequest);
+        return ResponseEntity.ok(response);
     }
 }

@@ -27,6 +27,9 @@ public class UserEntity {
     @Column(name = "tenant_id", nullable = false, length = 64)
     private String tenantId;
 
+    @Column(name = "email", unique = true, length = 128)
+    private String email;
+
     @Column(name = "username", nullable = false, length = 128)
     private String username;
 

@@ -19,8 +19,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "aml_tenant_rule_configs", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_tenant_rule", columnNames = {"tenantId", "ruleCode"})
+@Table(name = "aml_tenant_rules", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_tenant_rule", columnNames = {"tenant_id", "rule_code"})
 })
 public class TenantRuleConfig {
 

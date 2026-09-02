@@ -52,6 +52,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String tenantId = claims.get("tenantId", String.class);
                 String role = claims.get("role", String.class);
 
+                // --- NEW CODE: Ensure Spring Security recognizes this as a Role ---
+                if (role != null && !role.startsWith("ROLE_")) {
+                    role = "ROLE_" + role;
+                }
+
                 // 3. CRITICAL: Set the database routing context for this specific request!
                 if (tenantId != null) {
                     TenantContextHolder.setTenantId(tenantId);

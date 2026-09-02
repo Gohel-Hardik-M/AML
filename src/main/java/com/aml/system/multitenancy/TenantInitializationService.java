@@ -20,7 +20,6 @@ public class TenantInitializationService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantInitializationService.class);
 
-    // Grab the explicitly named master database connection
     @Autowired
     @Qualifier("masterDataSource")
     private DataSource masterDataSource;
@@ -38,7 +37,7 @@ public class TenantInitializationService {
                 .dataSource(masterDataSource)
                 .locations("classpath:db/migration/master")
                 .baselineOnMigrate(true)
-                .baselineVersion("0")// <--- ADDED THIS LINE
+                .baselineVersion("0")
                 .load();
         masterFlyway.migrate();
 
@@ -52,24 +51,35 @@ public class TenantInitializationService {
             return;
         }
 
-        // 3. Loop through each tenant, spin up a connection pool, and run their migrations
         for (Map<String, Object> tenant : tenants) {
             String tenantId = (String) tenant.get("tenant_id");
             String url = (String) tenant.get("db_url");
             String username = (String) tenant.get("db_username");
             String password = (String) tenant.get("db_password");
 
-            log.info("Initializing connection and migrating Tenant: {}", tenantId);
+            String dbName = "aml_" + tenantId.toLowerCase();
 
-            // Add the Hikari connection pool to the router dynamically
+            // --- BULLETPROOF DB CREATION CHECK ---
+            log.info("Checking physical database existence for Tenant: {}", tenantId);
+            Integer dbCount = masterJdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM pg_database WHERE datname = ?",
+                    Integer.class,
+                    dbName
+            );
+
+            if (dbCount != null && dbCount == 0) {
+                log.info("Database {} missing. Auto-creating...", dbName);
+                masterJdbcTemplate.execute("CREATE DATABASE " + dbName);
+            }
+
+            log.info("Initializing connection and migrating Tenant: {}", tenantId);
             routingDataSource.addTenantDataSource(tenantId, url, username, password);
 
-            // Run Flyway for this specific tenant's database
             Flyway tenantFlyway = Flyway.configure()
                     .dataSource(url, username, password)
                     .locations("classpath:db/migration/tenant")
                     .baselineOnMigrate(true)
-                    .baselineVersion("0")// <--- ADDED THIS LINE
+                    .baselineVersion("0")
                     .load();
             tenantFlyway.migrate();
         }
