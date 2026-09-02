@@ -66,6 +66,7 @@ public class AlertService {
 
         CaseEntity savedCase = caseRepository.save(newCase);
 
+
         alert.setIsReviewed(true);
         alert.setAssignedCaseId(savedCase.getCaseId());
         alertRepository.save(alert);

@@ -2,6 +2,7 @@ package com.aml.system.exception;
 
 import lombok.Getter;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -43,10 +44,7 @@ public class AmlBusinessException extends RuntimeException {
         this.errorCode = errorCode;
         this.errorContext = errorContext != null ? errorContext : Map.of();
     }
-    // Add this constructor to support direct string messages
-    public AmlBusinessException(String message) {
-        super(message);
-        this.errorCode = null;
-        this.errorContext = java.util.Map.of();
-    }
+
+
+
 }

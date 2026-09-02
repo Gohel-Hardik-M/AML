@@ -9,8 +9,10 @@ import com.aml.system.model.CaseEntity;
 import com.aml.system.model.enums.CaseStatus;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.CaseRepository;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.annotations.Temporal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,8 @@ public class CaseService {
         return page.map(caseMapper::toDto);
     }
 
+
+
     @Transactional(readOnly = true)
     public CaseResponseDto getCaseById(UUID caseId) {
         String tenantId = TenantContextHolder.getTenantId();
@@ -42,6 +46,8 @@ public class CaseService {
                 .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.CASE_NOT_FOUND, "Case not found for ID: " + caseId));
         return caseMapper.toDto(caseEntity);
     }
+
+
 
     @Transactional
     public CaseResponseDto updateCase(UUID caseId, CaseUpdateRequestDto updateRequest) {
@@ -60,6 +66,7 @@ public class CaseService {
         }
         if (updateRequest.getSarFilingReference() != null) {
             caseEntity.setSarFilingReference(updateRequest.getSarFilingReference());
+
         }
 
         CaseEntity saved = caseRepository.save(caseEntity);
