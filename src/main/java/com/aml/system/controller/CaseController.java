@@ -5,6 +5,7 @@ import com.aml.system.dto.cases.CaseResponseDto;
 import com.aml.system.dto.cases.CaseUpdateRequestDto;
 import com.aml.system.model.enums.CaseStatus;
 import com.aml.system.service.CaseService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,7 +42,7 @@ public class CaseController {
     @PatchMapping("/{caseId}")
     public ResponseEntity<ApiResponse<CaseResponseDto>> updateCase(
             @PathVariable UUID caseId,
-            @RequestBody CaseUpdateRequestDto updateRequest
+            @Valid @RequestBody CaseUpdateRequestDto updateRequest
     ) {
         CaseResponseDto caseDto = caseService.updateCase(caseId, updateRequest);
         return ResponseEntity.ok(ApiResponse.success(caseDto, "Case updated successfully"));

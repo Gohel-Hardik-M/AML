@@ -23,6 +23,8 @@ import java.util.UUID;
 @Repository
 public interface CaseRepository extends JpaRepository<CaseEntity, UUID> {
 
+    Page<CaseEntity> findByTenantId(String tenantId, Pageable pageable);
+
     Page<CaseEntity> findByTenantIdAndStatus(String tenantId, CaseStatus status, Pageable pageable);
 
     Page<CaseEntity> findByTenantIdAndAssignedAnalystId(String tenantId, String assignedAnalystId, Pageable pageable);

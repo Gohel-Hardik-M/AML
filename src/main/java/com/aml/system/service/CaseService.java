@@ -3,7 +3,6 @@ package com.aml.system.service;
 import com.aml.system.dto.cases.CaseResponseDto;
 import com.aml.system.dto.cases.CaseUpdateRequestDto;
 import com.aml.system.exception.AmlBusinessException;
-import com.aml.system.exception.ErrorCodeEnum;
 import com.aml.system.mapper.CaseMapper;
 import com.aml.system.model.CaseEntity;
 import com.aml.system.model.enums.CaseStatus;
@@ -31,7 +30,7 @@ public class CaseService {
         String tenantId = TenantContextHolder.getTenantId();
         Page<CaseEntity> page = (status != null) ?
                 caseRepository.findByTenantIdAndStatus(tenantId, status, pageable) :
-                caseRepository.findAll(pageable);
+            caseRepository.findByTenantId(tenantId, pageable);
         return page.map(caseMapper::toDto);
     }
 
@@ -39,15 +38,21 @@ public class CaseService {
     public CaseResponseDto getCaseById(UUID caseId) {
         String tenantId = TenantContextHolder.getTenantId();
         CaseEntity caseEntity = caseRepository.findByCaseIdAndTenantId(caseId, tenantId)
-                .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.CASE_NOT_FOUND, "Case not found for ID: " + caseId));
+                .orElseThrow(() -> new AmlBusinessException("Case not found for ID: " + caseId, org.springframework.http.HttpStatus.NOT_FOUND));
         return caseMapper.toDto(caseEntity);
     }
 
     @Transactional
     public CaseResponseDto updateCase(UUID caseId, CaseUpdateRequestDto updateRequest) {
         String tenantId = TenantContextHolder.getTenantId();
+        if (updateRequest.getStatus() == null
+                && updateRequest.getAssignedAnalystId() == null
+                && updateRequest.getInvestigationNotes() == null
+                && updateRequest.getSarFilingReference() == null) {
+            throw new AmlBusinessException("At least one case field is required for update.", org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
         CaseEntity caseEntity = caseRepository.findByCaseIdAndTenantId(caseId, tenantId)
-                .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.CASE_NOT_FOUND, "Case not found for ID: " + caseId));
+                .orElseThrow(() -> new AmlBusinessException("Case not found for ID: " + caseId, org.springframework.http.HttpStatus.NOT_FOUND));
 
         if (updateRequest.getStatus() != null) {
             caseEntity.setStatus(updateRequest.getStatus());

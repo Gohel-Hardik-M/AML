@@ -72,11 +72,16 @@ public class TenantDataSeeder {
                             .isActive(true)
                             .isLocked(false)
                             .failedAttempts(0)
-                            .isTemporaryPassword(true) // Forces them to reset it!
+                            .isTemporaryPassword(true)
                             .build();
 
-                    userRepository.save(admin);
-                    log.info("Bank Admin created successfully for {}!", tenantId);
+                    try {
+                        userRepository.save(admin);
+                        log.info("Bank Admin created successfully for {}!", tenantId);
+                    } catch (Exception saveEx) {
+                        log.warn("Admin already exists or could not be seeded for tenant {}: {}",
+                                tenantId, saveEx.getMessage());
+                    }
                 } else {
                     log.info("Admin already exists for tenant: {}. Skipping seed.", tenantId);
                 }

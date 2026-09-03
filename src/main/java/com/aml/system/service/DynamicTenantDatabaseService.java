@@ -1,10 +1,11 @@
 package com.aml.system.service;
 
 import com.aml.system.exception.AmlBusinessException;
-import com.aml.system.exception.ErrorCodeEnum;
 import com.aml.system.multitenancy.TenantRoutingDataSource;
 import org.flywaydb.core.Flyway;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,13 +21,15 @@ public class DynamicTenantDatabaseService {
     @Value("${spring.datasource.password}")
     private String dbPassword;
 
-    public DynamicTenantDatabaseService(JdbcTemplate masterJdbcTemplate, TenantRoutingDataSource routingDataSource) {
+    public DynamicTenantDatabaseService(@Qualifier("masterJdbcTemplate") JdbcTemplate masterJdbcTemplate,
+                                       TenantRoutingDataSource routingDataSource) {
         this.masterJdbcTemplate = masterJdbcTemplate;
         this.routingDataSource = routingDataSource;
     }
 
-    public void provisionNewTenantDatabase(String tenantId) {
+    public void provisionNewTenantDatabase(String tenantId, String bankName) {
         String dbName = "aml_" + tenantId.toLowerCase();
+        String safeBankName = (bankName == null || bankName.isBlank()) ? tenantId : bankName;
 
         Integer existingTenant = masterJdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM aml_tenant_registry WHERE tenant_id = ?",
@@ -36,8 +39,8 @@ public class DynamicTenantDatabaseService {
 
         if (existingTenant != null && existingTenant > 0) {
             throw new AmlBusinessException(
-                ErrorCodeEnum.BATCH_DUPLICATE_INGESTION,
-                "Tenant already exists: " + tenantId
+                "Tenant '" + tenantId + "' already exists.",
+                HttpStatus.CONFLICT
             );
         }
 
@@ -69,8 +72,8 @@ public class DynamicTenantDatabaseService {
 
         // 5. Permanently save to Master DB so TenantInitializationService finds it on next reboot
         masterJdbcTemplate.update(
-                "INSERT INTO aml_tenant_registry (tenant_id, db_url, db_username, db_password, is_active) VALUES (?, ?, ?, ?, true)",
-                tenantId, jdbcUrl, dbUsername, dbPassword
+            "INSERT INTO aml_tenant_registry (tenant_id, bank_name, db_url, db_username, db_password, is_active) VALUES (?, ?, ?, ?, ?, true)",
+            tenantId, safeBankName, jdbcUrl, dbUsername, dbPassword
         );
     }
 }

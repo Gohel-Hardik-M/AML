@@ -38,8 +38,14 @@ public class MultiTenantDataSourceConfig {
         return routingDataSource;
     }
 
-    @Bean
-    public JdbcTemplate jdbcTemplate(@Qualifier("routingDataSource") DataSource routingDataSource) {
+    @Bean(name = "masterJdbcTemplate")
+    @Primary
+    public JdbcTemplate masterJdbcTemplate(@Qualifier("masterDataSource") DataSource masterDataSource) {
+        return new JdbcTemplate(masterDataSource);
+    }
+
+    @Bean(name = "tenantJdbcTemplate")
+    public JdbcTemplate tenantJdbcTemplate(@Qualifier("routingDataSource") DataSource routingDataSource) {
         return new JdbcTemplate(routingDataSource);
     }
 }

@@ -3,7 +3,6 @@ package com.aml.system.service;
 import com.aml.system.dto.alerts.AlertResponseDto;
 import com.aml.system.dto.cases.CaseResponseDto;
 import com.aml.system.exception.AmlBusinessException;
-import com.aml.system.exception.ErrorCodeEnum;
 import com.aml.system.mapper.AlertMapper;
 import com.aml.system.mapper.CaseMapper;
 import com.aml.system.model.Alert;
@@ -36,12 +35,14 @@ public class AlertService {
     public Page<AlertResponseDto> getAlerts(AlertSeverity severity, Boolean isReviewed, Pageable pageable) {
         String tenantId = TenantContextHolder.getTenantId();
         Page<Alert> page;
-        if (severity != null) {
+        if (severity != null && isReviewed != null) {
+            page = alertRepository.findByTenantIdAndSeverityAndIsReviewed(tenantId, severity, isReviewed, pageable);
+        } else if (severity != null) {
             page = alertRepository.findByTenantIdAndSeverity(tenantId, severity, pageable);
         } else if (isReviewed != null) {
             page = alertRepository.findByTenantIdAndIsReviewed(tenantId, isReviewed, pageable);
         } else {
-            page = alertRepository.findAll(pageable);
+            page = alertRepository.findByTenantId(tenantId, pageable);
         }
         return page.map(alertMapper::toDto);
     }
@@ -50,7 +51,13 @@ public class AlertService {
     public CaseResponseDto escalateAlertToCase(UUID alertId, String analystId) {
         String tenantId = TenantContextHolder.getTenantId();
         Alert alert = alertRepository.findByAlertIdAndTenantId(alertId, tenantId)
-                .orElseThrow(() -> new AmlBusinessException(ErrorCodeEnum.ALERT_NOT_FOUND, "Alert not found for ID: " + alertId));
+                .orElseThrow(() -> new AmlBusinessException("Alert not found for ID: " + alertId, org.springframework.http.HttpStatus.NOT_FOUND));
+
+        if (alert.getAssignedCaseId() != null) {
+            return caseRepository.findByCaseIdAndTenantId(alert.getAssignedCaseId(), tenantId)
+                .map(caseMapper::toDto)
+                .orElseThrow(() -> new AmlBusinessException("The alert is already escalated but its case could not be found.", org.springframework.http.HttpStatus.CONFLICT));
+        }
 
         CaseEntity newCase = CaseEntity.builder()
                 .tenantId(tenantId)

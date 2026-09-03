@@ -1,52 +1,28 @@
 package com.aml.system.exception;
 
 import lombok.Getter;
-
-import java.util.Map;
+import org.springframework.http.HttpStatus;
 
 /**
- * Base custom unchecked exception for the AML Platform.
- * Carries an ErrorCodeEnum, optional contextual details for auditing, and timestamp.
+ * Base custom unchecked exception for AML API flows.
+ * Uses a simple HTTP status and message instead of exposing internal enum-based codes.
  */
 @Getter
 public class AmlBusinessException extends RuntimeException {
 
-    private final ErrorCodeEnum errorCode;
-    private final Map<String, Object> errorContext;
+    private final HttpStatus status;
 
-    public AmlBusinessException(ErrorCodeEnum errorCode) {
-        super(errorCode.getDefaultMessage());
-        this.errorCode = errorCode;
-        this.errorContext = Map.of();
-    }
-
-    public AmlBusinessException(ErrorCodeEnum errorCode, String customMessage) {
-        super(customMessage);
-        this.errorCode = errorCode;
-        this.errorContext = Map.of();
-    }
-
-    public AmlBusinessException(ErrorCodeEnum errorCode, String customMessage, Throwable cause) {
-        super(customMessage, cause);
-        this.errorCode = errorCode;
-        this.errorContext = Map.of();
-    }
-
-    public AmlBusinessException(ErrorCodeEnum errorCode, String customMessage, Map<String, Object> errorContext) {
-        super(customMessage);
-        this.errorCode = errorCode;
-        this.errorContext = errorContext != null ? errorContext : Map.of();
-    }
-
-    public AmlBusinessException(ErrorCodeEnum errorCode, String customMessage, Map<String, Object> errorContext, Throwable cause) {
-        super(customMessage, cause);
-        this.errorCode = errorCode;
-        this.errorContext = errorContext != null ? errorContext : Map.of();
-    }
-    // Add this constructor to support direct string messages
     public AmlBusinessException(String message) {
+        this(message, HttpStatus.BAD_REQUEST);
+    }
+
+    public AmlBusinessException(String message, HttpStatus status) {
         super(message);
-        this.errorCode = null;
-        this.errorContext = java.util.Map.of();
+        this.status = status;
+    }
+
+    public AmlBusinessException(String message, HttpStatus status, Throwable cause) {
+        super(message, cause);
+        this.status = status;
     }
 }

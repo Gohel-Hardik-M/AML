@@ -20,6 +20,10 @@ import java.util.UUID;
 @Repository
 public interface AlertRepository extends JpaRepository<Alert, UUID> {
 
+    Page<Alert> findByTenantId(String tenantId, Pageable pageable);
+
+    Page<Alert> findByTenantIdAndSeverityAndIsReviewed(String tenantId, AlertSeverity severity, Boolean isReviewed, Pageable pageable);
+
     Page<Alert> findByTenantIdAndIsReviewed(String tenantId, Boolean isReviewed, Pageable pageable);
 
     Page<Alert> findByTenantIdAndSeverity(String tenantId, AlertSeverity severity, Pageable pageable);

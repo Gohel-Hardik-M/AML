@@ -7,10 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.Map;
 
 /**
- * Universal JSON response wrapper for all REST API endpoints.
+ * Universal JSON response wrapper for REST API endpoints.
+ * Keeps responses simple and clear for clients.
  */
 @Data
 @Builder
@@ -21,9 +21,9 @@ public class ApiResponse<T> {
 
     private boolean success;
     private String message;
-    private String errorCode;
+    private String path;
     private T data;
-    private Map<String, Object> metadata;
+
     @Builder.Default
     private Instant timestamp = Instant.now();
 
@@ -40,12 +40,11 @@ public class ApiResponse<T> {
         return success(data, "Operation completed successfully");
     }
 
-    public static <T> ApiResponse<T> error(String errorCode, String message, Map<String, Object> metadata) {
+    public static <T> ApiResponse<T> error(String message, String path) {
         return ApiResponse.<T>builder()
                 .success(false)
-                .errorCode(errorCode)
                 .message(message)
-                .metadata(metadata)
+                .path(path)
                 .timestamp(Instant.now())
                 .build();
     }

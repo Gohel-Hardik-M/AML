@@ -1,13 +1,16 @@
 package com.aml.system.service;
 
 import com.aml.system.dto.admin.TenantOnboardRequestDto;
+import com.aml.system.exception.AmlBusinessException;
 import com.aml.system.model.UserEntity;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+import java.util.Locale;
 
 @Service
 public class TenantProvisioningService {
@@ -29,10 +32,13 @@ public class TenantProvisioningService {
     }
 
     public String onboardNewBank(TenantOnboardRequestDto request) {
-        String tenantId = request.getTenantCode().toUpperCase();
+        String tenantId = request.getTenantCode().trim().toUpperCase(Locale.ROOT);
+        String bankName = request.getBankName().trim();
+        String adminUsername = request.getAdminUsername().trim();
+        String adminEmail = request.getAdminEmail().trim().toLowerCase(Locale.ROOT);
 
         // 1. Create DB, run Flyway, and register the tenant
-        databaseService.provisionNewTenantDatabase(tenantId);
+        databaseService.provisionNewTenantDatabase(tenantId, bankName);
 
         try {
             // 2. Switch context to the brand new database
@@ -44,10 +50,10 @@ public class TenantProvisioningService {
             // 4. Seed the initial Bank Admin with Email
             UserEntity admin = UserEntity.builder()
                     .tenantId(tenantId)
-                    .username(request.getAdminUsername())
-                    .email(request.getAdminEmail()) // <--- Saved from validated DTO
+                    .username(adminUsername)
+                    .email(adminEmail)
                     .passwordHash(passwordEncoder.encode(tempPassword))
-                    .fullName(request.getBankName() + " Admin")
+                    .fullName(bankName + " Admin")
                     .role("TENANT_ADMIN")
                     .isTemporaryPassword(true)
                     .isActive(true)
@@ -55,13 +61,29 @@ public class TenantProvisioningService {
                     .isLocked(false)
                     .build();
 
-            userRepository.save(admin);
+            try {
+                userRepository.save(admin);
+            } catch (Exception e) {
+                if (e.getMessage() != null && e.getMessage().toLowerCase().contains("username")) {
+                    throw new AmlBusinessException(
+                            "Admin username '" + adminUsername + "' already exists for this tenant.",
+                            HttpStatus.CONFLICT
+                    );
+                }
+                if (e.getMessage() != null && e.getMessage().toLowerCase().contains("email")) {
+                    throw new AmlBusinessException(
+                            "Admin email '" + adminEmail + "' already exists.",
+                            HttpStatus.CONFLICT
+                    );
+                }
+                throw new AmlBusinessException("Unable to create tenant administrator.", HttpStatus.INTERNAL_SERVER_ERROR);
+            }
 
-            // 5. Dispatch email asynchronously (API won't wait for this to finish)
-            emailService.sendOnboardingEmail(request.getAdminEmail(), request.getBankName(), tempPassword);
+            // 5. Dispatch email asynchronously (API won't wait for the SMTP result)
+            emailService.sendOnboardingEmail(adminEmail, bankName, tempPassword);
 
             // 6. Return a generic success message instead of exposing the password
-            return "Tenant provisioned successfully. Credentials dispatched via email to " + request.getAdminEmail();
+            return "Tenant provisioned successfully. Credentials dispatched via email to " + adminEmail;
 
         } finally {
             TenantContextHolder.clear();

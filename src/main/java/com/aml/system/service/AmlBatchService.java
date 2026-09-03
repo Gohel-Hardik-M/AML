@@ -3,7 +3,6 @@ package com.aml.system.service;
 import com.aml.system.dto.batch.BatchJobResponseDto;
 import com.aml.system.dto.batch.BatchUploadRequestDto;
 import com.aml.system.exception.AmlBusinessException;
-import com.aml.system.exception.ErrorCodeEnum;
 import com.aml.system.multitenancy.TenantContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,9 +38,23 @@ public class AmlBatchService {
      * Launches the Spring Batch Chunk-Oriented ETL Pipeline for up to 10,000,000 records.
      */
     public BatchJobResponseDto launchBatchJob(String filePath, BatchUploadRequestDto requestDto) {
-        String tenantId = TenantContextHolder.getTenantId() != null ? TenantContextHolder.getTenantId() : requestDto.getTenantId();
-        if (tenantId == null) {
-            throw new AmlBusinessException(ErrorCodeEnum.TENANT_NOT_FOUND, "Tenant context missing for batch job launch");
+        String contextTenantId = TenantContextHolder.getTenantId();
+        String requestTenantId = requestDto.getTenantId().trim().toUpperCase(java.util.Locale.ROOT);
+        if (contextTenantId != null && !contextTenantId.equalsIgnoreCase(requestTenantId)) {
+            throw new AmlBusinessException("Request tenant does not match the authenticated tenant.", org.springframework.http.HttpStatus.FORBIDDEN);
+        }
+        String tenantId = contextTenantId != null ? contextTenantId : requestTenantId;
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new AmlBusinessException("Tenant context missing for batch job launch", org.springframework.http.HttpStatus.NOT_FOUND);
+        }
+        Path inputFile;
+        try {
+            inputFile = Path.of(filePath).normalize();
+        } catch (RuntimeException ex) {
+            throw new AmlBusinessException("Batch file path is invalid.", org.springframework.http.HttpStatus.BAD_REQUEST, ex);
+        }
+        if (!Files.isRegularFile(inputFile) || !Files.isReadable(inputFile)) {
+            throw new AmlBusinessException("Batch file does not exist or is not readable.", org.springframework.http.HttpStatus.BAD_REQUEST);
         }
 
         UUID batchId = UUID.randomUUID();
@@ -64,7 +79,7 @@ public class AmlBatchService {
 
         } catch (Exception ex) {
             log.error("Failed to launch batch job for batchId {}: {}", batchId, ex.getMessage(), ex);
-            throw new AmlBusinessException(ErrorCodeEnum.BATCH_FILE_CORRUPTED, "Failed to launch Spring Batch execution: " + ex.getMessage(), ex);
+            throw new AmlBusinessException("Failed to launch Spring Batch execution: " + ex.getMessage(), org.springframework.http.HttpStatus.BAD_REQUEST, ex);
         }
     }
 
@@ -95,8 +110,11 @@ public class AmlBatchService {
      */
     @Async
     @Transactional
-    public CompletableFuture<Void> executeEltPipeline(UUID batchId) {
-        String tenantId = TenantContextHolder.getTenantId();
+    public CompletableFuture<Void> executeEltPipeline(UUID batchId, String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new AmlBusinessException("Tenant context missing for ELT pipeline", org.springframework.http.HttpStatus.NOT_FOUND);
+        }
+        TenantContextHolder.setTenantId(tenantId);
         log.info("Initiating PostgreSQL in-database ELT procedure CALL process_batch_transactions(?) for batchId: {}, tenant: {}", batchId, tenantId);
 
         try {
@@ -110,10 +128,12 @@ public class AmlBatchService {
         } catch (Exception ex) {
             log.error("PostgreSQL ELT Stored Procedure execution failed for batchId [{}]: {}", batchId, ex.getMessage(), ex);
             throw new AmlBusinessException(
-                    ErrorCodeEnum.BATCH_ELT_PROCEDURE_FAILED,
                     "Database ELT Stored Procedure execution failed: " + ex.getMessage(),
+                    org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,
                     ex
             );
+            } finally {
+                TenantContextHolder.clear();
         }
     }
 }

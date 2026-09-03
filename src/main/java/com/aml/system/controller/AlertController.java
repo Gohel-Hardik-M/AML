@@ -12,10 +12,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.UUID;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/api/v1/alerts")
 @RequiredArgsConstructor
@@ -36,7 +40,7 @@ public class AlertController {
     @PostMapping("/{alertId}/escalate")
     public ResponseEntity<ApiResponse<CaseResponseDto>> escalateAlert(
             @PathVariable UUID alertId,
-            @RequestParam String analystId
+            @RequestParam @NotBlank(message = "Analyst ID is required") @Size(max = 64, message = "Analyst ID must not exceed 64 characters") String analystId
     ) {
         CaseResponseDto caseDto = alertService.escalateAlertToCase(alertId, analystId);
         return ResponseEntity.ok(ApiResponse.success(caseDto, "Alert successfully escalated to compliance case"));
