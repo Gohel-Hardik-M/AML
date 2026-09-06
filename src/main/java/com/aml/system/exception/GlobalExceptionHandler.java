@@ -9,8 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.sql.SQLException;
 import java.util.stream.Collectors;
@@ -30,6 +33,45 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(status).body(
                 ApiResponse.error(ex.getMessage(), request.getRequestURI())
+        );
+    }
+
+    // --- NEW: Handle Business Logic Errors (e.g., Duplicate Checksum from BatchService) ---
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        log.warn("Invalid argument on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ApiResponse.error(ex.getMessage(), request.getRequestURI())
+        );
+    }
+
+    // --- NEW: Handle Missing Form Parameters (e.g., forgot to attach the file) ---
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParams(MissingServletRequestParameterException ex, HttpServletRequest request) {
+        String msg = "Required parameter '" + ex.getParameterName() + "' is missing.";
+        log.warn("Missing parameter on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ApiResponse.error(msg, request.getRequestURI())
+        );
+    }
+
+    // --- NEW: Handle Bad Data Formats (e.g., wrong date format for batchDate) ---
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+        String msg = "Invalid format for parameter '" + ex.getName() + "'. Expected type: " + requiredType;
+        log.warn("Type mismatch on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ApiResponse.error(msg, request.getRequestURI())
+        );
+    }
+
+    // --- NEW: Handle Files that are too large for Tomcat ---
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxSizeException(MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        log.warn("Max upload size exceeded on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(
+                ApiResponse.error("File size exceeds the allowed server limit.", request.getRequestURI())
         );
     }
 

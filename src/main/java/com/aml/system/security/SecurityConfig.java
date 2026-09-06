@@ -17,15 +17,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final SecurityExceptionHandler securityExceptionHandler; // Added the custom exception handler
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Injecting the JWT filter we built earlier
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
+    // Injecting the JWT filter and the Exception Handler we built
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, SecurityExceptionHandler securityExceptionHandler) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.securityExceptionHandler = securityExceptionHandler;
     }
 
     @Bean
@@ -43,7 +45,13 @@ public class SecurityConfig {
                         .anyRequest().authenticated()                   // Every other request requires a valid JWT
                 )
 
-                // 4. Register our Custom JWT Filter
+                // 4. Bind our custom JSON Error Handlers for 401 and 403 errors
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(securityExceptionHandler)
+                        .accessDeniedHandler(securityExceptionHandler)
+                )
+
+                // 5. Register our Custom JWT Filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
