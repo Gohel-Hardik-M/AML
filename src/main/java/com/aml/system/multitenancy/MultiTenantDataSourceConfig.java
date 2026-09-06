@@ -2,6 +2,7 @@ package com.aml.system.multitenancy;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.batch.BatchDataSource;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +23,7 @@ public class MultiTenantDataSourceConfig {
     }
 
     @Bean(name = "masterDataSource")
+    @BatchDataSource
     public DataSource masterDataSource() {
         return masterDataSourceProperties()
                 .initializeDataSourceBuilder()

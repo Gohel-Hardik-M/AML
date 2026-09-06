@@ -53,6 +53,7 @@ public class TenantDataSeeder {
         for (Map<String, Object> tenantRow : tenants) {
             String tenantId = (String) tenantRow.get("tenant_id");
             String adminUsername = "admin_" + tenantId.toLowerCase();
+            String adminEmail = adminUsername + "@" + tenantId.toLowerCase() + ".com"; // Generates e.g., admin_icci@icci.com
 
             try {
                 // 3. Switch connection to this specific tenant's database
@@ -63,9 +64,11 @@ public class TenantDataSeeder {
                 if (existingAdmin.isEmpty()) {
                     log.info("Seeding default Bank Admin for tenant: {}", tenantId);
 
+                    // Added the missing email field to satisfy the DB constraint
                     UserEntity admin = UserEntity.builder()
                             .tenantId(tenantId)
                             .username(adminUsername)
+                            .email(adminEmail)
                             .passwordHash(passwordEncoder.encode("admin123"))
                             .fullName(tenantId + " Administrator")
                             .role("TENANT_ADMIN")
