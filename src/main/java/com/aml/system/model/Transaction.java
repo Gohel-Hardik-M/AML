@@ -1,0 +1,47 @@
+package com.aml.system.model;
+
+import jakarta.persistence.Column;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public class Transaction {
+
+
+
+    private UUID transactionId;
+
+
+    private String tenantId;
+
+    private String sourceAccountId;
+
+
+    private String destinationAccountId;
+
+    private String customerID;
+
+
+    private BigDecimal amount;
+
+
+    private String currency;
+
+    private TransactionType transactionType;
+
+    private String countryCode;
+
+    private String counterpartyCountryCode;
+
+    private String counterpartyName;
+
+    private String channel;
+
+    @Column(nullable = false)
+    private LocalDateTime timestamp;
+
+    @Column(name = "batch_id", nullable = false)
+    private UUID batchId;
+
+}
