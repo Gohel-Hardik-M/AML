@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/v1/transactions")
 public class BatchIngesionController {
-    
+
         private final BatchService batchService;
 
         public BatchIngesionController(BatchService batchService) {

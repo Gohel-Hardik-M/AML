@@ -1,7 +1,7 @@
 package com.aml.system.Validation;
 
+import com.aml.system.exception.TransactionException;
 import com.aml.system.model.Transaction;
-import org.hibernate.TransactionException;
 import org.springframework.stereotype.Component;
 
 
