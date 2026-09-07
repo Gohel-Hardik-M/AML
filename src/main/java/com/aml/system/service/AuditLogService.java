@@ -25,7 +25,15 @@ public class AuditLogService {
                 .details(details)
                 .build();
 
-        auditLogRepository.save(audit);
-        log.info("AUDIT: User [{}] executed [{}] on Record [{}] from IP [{}]", userId, actionType, affectedRecordId, ipAddress);
+        try {
+            auditLogRepository.save(audit);
+            log.info("AUDIT: User [{}] executed [{}] on Record [{}] from IP [{}]", userId, actionType, affectedRecordId, ipAddress);
+        } catch (Exception e) {
+            // Fallback: if DB save fails, ensure the audit event is at least captured in logs.
+            // This prevents audit logging failures from killing parent operations (e.g., a successful login).
+            log.error("AUDIT_DB_FAILURE: Failed to persist audit log. Falling back to file log. " +
+                       "User=[{}], Action=[{}], Record=[{}], IP=[{}], Details=[{}], Error=[{}]",
+                    userId, actionType, affectedRecordId, ipAddress, details, e.getMessage());
+        }
     }
 }

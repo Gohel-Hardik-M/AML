@@ -3,6 +3,7 @@ package com.aml.system.service;
 import com.aml.system.dto.admin.TenantOnboardRequestDto;
 import com.aml.system.exception.AmlBusinessException;
 import com.aml.system.model.UserEntity;
+import com.aml.system.model.UserRole;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -31,13 +32,17 @@ public class TenantProvisioningService {
         this.emailService = emailService;
     }
 
+    /**
+     * Onboards a new bank tenant: creates DB, runs migrations, creates admin user, sends email.
+     * Returns a generic success message — credentials are dispatched via email only (audit finding #6).
+     */
     public String onboardNewBank(TenantOnboardRequestDto request) {
         String tenantId = request.getTenantCode().trim().toUpperCase(Locale.ROOT);
         String bankName = request.getBankName().trim();
         String adminUsername = request.getAdminUsername().trim();
         String adminEmail = request.getAdminEmail().trim().toLowerCase(Locale.ROOT);
 
-        // 1. Create DB, run Flyway, and register the tenant
+        // 1. Create DB, run Flyway, and register the tenant (includes rollback on failure)
         databaseService.provisionNewTenantDatabase(tenantId, bankName);
 
         try {
@@ -54,7 +59,7 @@ public class TenantProvisioningService {
                     .email(adminEmail)
                     .passwordHash(passwordEncoder.encode(tempPassword))
                     .fullName(bankName + " Admin")
-                    .role("TENANT_ADMIN")
+                    .role(UserRole.TENANT_ADMIN)
                     .isTemporaryPassword(true)
                     .isActive(true)
                     .failedAttempts(0)
@@ -82,8 +87,8 @@ public class TenantProvisioningService {
             // 5. Dispatch email asynchronously (API won't wait for the SMTP result)
             emailService.sendOnboardingEmail(adminEmail, bankName, tempPassword);
 
-            // 6. Return a generic success message instead of exposing the password
-            return "Tenant provisioned successfully. Credentials dispatched via email to " + adminEmail;
+            // 6. Return generic success message — NO passwords or emails in API response (audit finding #6)
+            return "Tenant provisioned successfully. Credentials have been dispatched via email.";
 
         } finally {
             TenantContextHolder.clear();

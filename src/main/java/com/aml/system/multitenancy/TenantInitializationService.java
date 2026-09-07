@@ -1,5 +1,6 @@
 package com.aml.system.multitenancy;
 
+import com.aml.system.service.CredentialEncryptionService;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,9 @@ public class TenantInitializationService {
 
     @Autowired
     private TenantRoutingDataSource routingDataSource;
+
+    @Autowired
+    private CredentialEncryptionService encryptionService;
 
     @Order(1)
     @EventListener(ApplicationReadyEvent.class)
@@ -55,9 +59,12 @@ public class TenantInitializationService {
             String tenantId = (String) tenant.get("tenant_id");
             String url = (String) tenant.get("db_url");
             String username = (String) tenant.get("db_username");
-            String password = (String) tenant.get("db_password");
+            // Decrypt password (backward compatible: plaintext values pass through unchanged)
+            String password = encryptionService.decrypt((String) tenant.get("db_password"));
 
-            String dbName = "aml_" + tenantId.toLowerCase();
+            // Sanitize DB name to prevent SQL injection (audit finding #1)
+            String sanitizedTenantId = tenantId.replaceAll("[^a-zA-Z0-9_]", "");
+            String dbName = "aml_" + sanitizedTenantId.toLowerCase();
 
             // --- BULLETPROOF DB CREATION CHECK ---
             log.info("Checking physical database existence for Tenant: {}", tenantId);
@@ -69,7 +76,8 @@ public class TenantInitializationService {
 
             if (dbCount != null && dbCount == 0) {
                 log.info("Database {} missing. Auto-creating...", dbName);
-                masterJdbcTemplate.execute("CREATE DATABASE " + dbName);
+                // Use quoted identifier to prevent SQL injection (audit finding #1)
+                masterJdbcTemplate.execute("CREATE DATABASE \"" + dbName + "\"");
             }
 
             log.info("Initializing connection and migrating Tenant: {}", tenantId);
