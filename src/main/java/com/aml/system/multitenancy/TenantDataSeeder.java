@@ -1,6 +1,7 @@
 package com.aml.system.multitenancy;
 
 import com.aml.system.model.UserEntity;
+import com.aml.system.model.UserRole;
 import com.aml.system.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +72,7 @@ public class TenantDataSeeder {
                             .email(adminEmail)
                             .passwordHash(passwordEncoder.encode("admin123"))
                             .fullName(tenantId + " Administrator")
-                            .role("TENANT_ADMIN")
+                            .role(UserRole.TENANT_ADMIN)
                             .isActive(true)
                             .isLocked(false)
                             .failedAttempts(0)

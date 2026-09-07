@@ -3,6 +3,8 @@ package com.aml.system.service;
 import com.aml.system.exception.AmlBusinessException;
 import com.aml.system.multitenancy.TenantRoutingDataSource;
 import org.flywaydb.core.Flyway;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -12,8 +14,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class DynamicTenantDatabaseService {
 
+    private static final Logger log = LoggerFactory.getLogger(DynamicTenantDatabaseService.class);
+
     private final JdbcTemplate masterJdbcTemplate;
     private final TenantRoutingDataSource routingDataSource;
+    private final CredentialEncryptionService encryptionService;
 
     @Value("${spring.datasource.username}")
     private String dbUsername;
@@ -22,15 +27,29 @@ public class DynamicTenantDatabaseService {
     private String dbPassword;
 
     public DynamicTenantDatabaseService(@Qualifier("masterJdbcTemplate") JdbcTemplate masterJdbcTemplate,
-                                       TenantRoutingDataSource routingDataSource) {
+                                       TenantRoutingDataSource routingDataSource,
+                                       CredentialEncryptionService encryptionService) {
         this.masterJdbcTemplate = masterJdbcTemplate;
         this.routingDataSource = routingDataSource;
+        this.encryptionService = encryptionService;
     }
 
+    /**
+     * Provisions a new tenant database: creates DB, runs Flyway, registers in routing, persists to registry.
+     * Includes compensation logic for partial failures (audit finding #9).
+     */
     public void provisionNewTenantDatabase(String tenantId, String bankName) {
-        String dbName = "aml_" + tenantId.toLowerCase();
+        // Defense-in-depth: re-validate tenantId server-side even though DTO has @Pattern
+        if (!tenantId.matches("^[A-Za-z0-9_-]+$")) {
+            throw new AmlBusinessException("Invalid tenant ID format", HttpStatus.BAD_REQUEST);
+        }
+
+        // Sanitize DB name: strip anything non-alphanumeric/underscore to prevent SQL injection
+        String sanitizedTenantId = tenantId.replaceAll("[^a-zA-Z0-9_]", "");
+        String dbName = "aml_" + sanitizedTenantId.toLowerCase();
         String safeBankName = (bankName == null || bankName.isBlank()) ? tenantId : bankName;
 
+        // Check if tenant already exists (with ON CONFLICT as backup for TOCTOU race)
         Integer existingTenant = masterJdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM aml_tenant_registry WHERE tenant_id = ?",
             Integer.class,
@@ -50,30 +69,74 @@ public class DynamicTenantDatabaseService {
             dbName
         );
 
-        // 1. Create the brand new database via Master connection if needed
-        if (existingDatabase == null || existingDatabase == 0) {
-            masterJdbcTemplate.execute("CREATE DATABASE " + dbName);
+        boolean dbCreatedByUs = false;
+
+        try {
+            // 1. Create the brand new database via Master connection if needed
+            // Uses quoted identifier to prevent SQL injection (audit finding #1)
+            if (existingDatabase == null || existingDatabase == 0) {
+                masterJdbcTemplate.execute("CREATE DATABASE \"" + dbName + "\"");
+                dbCreatedByUs = true;
+                log.info("Created database: {}", dbName);
+            }
+
+            // 2. Generate the dynamic connection string
+            String jdbcUrl = "jdbc:postgresql://localhost:5432/" + dbName;
+
+            // 3. Run Flyway automatically on the new database
+            Flyway flyway = Flyway.configure()
+                    .dataSource(jdbcUrl, dbUsername, dbPassword)
+                    .locations("classpath:db/migration/tenant")
+                    .baselineOnMigrate(true)
+                    .baselineVersion("0")
+                    .load();
+            flyway.migrate();
+
+            // 4. Inject it into the live router so it works instantly without restarting
+            routingDataSource.addTenantDataSource(tenantId, jdbcUrl, dbUsername, dbPassword);
+
+            // 5. Encrypt credentials before persisting to registry (audit finding #18)
+            String encryptedPassword = encryptionService.encrypt(dbPassword);
+
+            // 6. Persist to Master DB with ON CONFLICT DO NOTHING to handle TOCTOU race (audit finding #2)
+            int rowsInserted = masterJdbcTemplate.update(
+                "INSERT INTO aml_tenant_registry (tenant_id, bank_name, db_url, db_username, db_password, is_active) " +
+                "VALUES (?, ?, ?, ?, ?, true) ON CONFLICT (tenant_id) DO NOTHING",
+                tenantId, safeBankName, jdbcUrl, dbUsername, encryptedPassword
+            );
+
+            if (rowsInserted == 0) {
+                throw new AmlBusinessException(
+                        "Tenant '" + tenantId + "' was registered by another request. Please retry.",
+                        HttpStatus.CONFLICT
+                );
+            }
+
+            log.info("Tenant '{}' provisioned successfully.", tenantId);
+
+        } catch (AmlBusinessException e) {
+            throw e; // Re-throw business exceptions as-is
+        } catch (Exception e) {
+            // Compensation: rollback partial state on unexpected failures
+            log.error("Tenant provisioning failed for '{}'. Initiating compensation.", tenantId, e);
+
+            // Remove from registry if it was inserted
+            masterJdbcTemplate.update("DELETE FROM aml_tenant_registry WHERE tenant_id = ?", tenantId);
+
+            // Drop the database if we created it
+            if (dbCreatedByUs) {
+                try {
+                    masterJdbcTemplate.execute("DROP DATABASE IF EXISTS \"" + dbName + "\"");
+                    log.info("Compensation: dropped orphaned database '{}'", dbName);
+                } catch (Exception dropEx) {
+                    log.error("Compensation: failed to drop database '{}': {}", dbName, dropEx.getMessage());
+                }
+            }
+
+            throw new AmlBusinessException(
+                    "Failed to provision tenant database. All changes have been rolled back.",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
-
-        // 2. Generate the dynamic connection string
-        String jdbcUrl = "jdbc:postgresql://localhost:5432/" + dbName;
-
-        // 3. Run Flyway automatically on the new database
-        Flyway flyway = Flyway.configure()
-                .dataSource(jdbcUrl, dbUsername, dbPassword)
-                .locations("classpath:db/migration/tenant")
-                .baselineOnMigrate(true)
-                .baselineVersion("0")
-                .load();
-        flyway.migrate();
-
-        // 4. Inject it into the live router so it works instantly without restarting
-        routingDataSource.addTenantDataSource(tenantId, jdbcUrl, dbUsername, dbPassword);
-
-        // 5. Permanently save to Master DB so TenantInitializationService finds it on next reboot
-        masterJdbcTemplate.update(
-            "INSERT INTO aml_tenant_registry (tenant_id, bank_name, db_url, db_username, db_password, is_active) VALUES (?, ?, ?, ?, ?, true)",
-            tenantId, safeBankName, jdbcUrl, dbUsername, dbPassword
-        );
     }
 }

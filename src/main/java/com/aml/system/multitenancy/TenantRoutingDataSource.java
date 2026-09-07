@@ -1,14 +1,22 @@
 package com.aml.system.multitenancy;
 
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Routes database connections based on the current tenant context.
+ * Uses ConcurrentHashMap for thread-safe tenant DataSource registration (audit finding #19).
+ */
 public class TenantRoutingDataSource extends AbstractRoutingDataSource {
 
-    private final Map<Object, Object> dataSources = new HashMap<>();
+    private static final Logger log = LoggerFactory.getLogger(TenantRoutingDataSource.class);
+
+    private final Map<Object, Object> dataSources = new ConcurrentHashMap<>();
 
     public TenantRoutingDataSource() {
         // Initialize with the empty map
@@ -21,20 +29,45 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
         return TenantContextHolder.getTenantId();
     }
 
-    public void addTenantDataSource(String tenantId, String url, String username, String password) {
+    /**
+     * Registers a new tenant DataSource in the routing map.
+     * Synchronized to prevent concurrent modifications during afterPropertiesSet() (audit finding #19).
+     * Closes existing DataSource before replacing to prevent connection pool leaks (audit finding #20).
+     */
+    public synchronized void addTenantDataSource(String tenantId, String url, String username, String password) {
+        // Close existing DataSource if replacing (prevents connection pool leak)
+        Object existing = dataSources.get(tenantId);
+        if (existing instanceof HikariDataSource existingDs) {
+            log.info("Closing existing DataSource for tenant '{}' before replacement.", tenantId);
+            try {
+                existingDs.close();
+            } catch (Exception e) {
+                log.warn("Failed to close existing DataSource for tenant '{}': {}", tenantId, e.getMessage());
+            }
+        }
+
         HikariDataSource dataSource = new HikariDataSource();
         dataSource.setJdbcUrl(url);
         dataSource.setUsername(username);
         dataSource.setPassword(password);
+        dataSource.setPoolName("HikariPool-" + tenantId);
 
         // Strict connection limits per tenant to prevent PostgreSQL connection exhaustion
         dataSource.setMaximumPoolSize(10);
         dataSource.setMinimumIdle(2);
+
+        // Connection validation to detect stale connections (audit finding #35)
+        dataSource.setConnectionTimeout(30000);   // 30 seconds to get a connection
+        dataSource.setIdleTimeout(600000);         // 10 minutes idle before eviction
+        dataSource.setMaxLifetime(1800000);        // 30 minutes max lifetime
+        dataSource.setConnectionTestQuery("SELECT 1");
 
         dataSources.put(tenantId, dataSource);
 
         // Notify Spring that the datasource map has been updated
         this.setTargetDataSources(dataSources);
         this.afterPropertiesSet();
+
+        log.info("DataSource registered for tenant '{}'.", tenantId);
     }
 }

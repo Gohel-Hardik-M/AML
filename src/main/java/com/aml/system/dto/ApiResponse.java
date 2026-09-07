@@ -22,6 +22,7 @@ public class ApiResponse<T> {
     private boolean success;
     private String message;
     private String path;
+    private String errorCode;
     private T data;
 
     @Builder.Default
@@ -40,10 +41,28 @@ public class ApiResponse<T> {
         return success(data, "Operation completed successfully");
     }
 
+    public static <T> ApiResponse<T> success(String message) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .message(message)
+                .timestamp(Instant.now())
+                .build();
+    }
+
     public static <T> ApiResponse<T> error(String message, String path) {
         return ApiResponse.<T>builder()
                 .success(false)
                 .message(message)
+                .path(path)
+                .timestamp(Instant.now())
+                .build();
+    }
+
+    public static <T> ApiResponse<T> error(String message, String errorCode, String path) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .errorCode(errorCode)
                 .path(path)
                 .timestamp(Instant.now())
                 .build();

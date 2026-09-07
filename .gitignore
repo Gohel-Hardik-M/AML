@@ -34,4 +34,4 @@ build/
 .vscode/
 
 FINAL_API_AND_DATABASE_DESIGN.txt
-application-dev.properties
+**/application-dev.properties

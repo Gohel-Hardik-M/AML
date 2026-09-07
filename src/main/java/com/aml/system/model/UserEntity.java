@@ -1,15 +1,16 @@
 package com.aml.system.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
+@ToString
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,6 +24,13 @@ public class UserEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID userId;
+
+    /**
+     * Optimistic locking version to prevent lost updates (e.g., concurrent login attempts).
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @Column(name = "tenant_id", nullable = false, length = 64)
     private String tenantId;
@@ -39,20 +47,34 @@ public class UserEntity {
     @Column(name = "full_name", nullable = false, length = 128)
     private String fullName;
 
+    /**
+     * Stored as String in DB (e.g., "TENANT_ADMIN"). Enum prevents invalid role values.
+     */
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 64)
-    private String role; // e.g. ROLE_COMPLIANCE_ANALYST, ROLE_COMPLIANCE_OFFICER, ROLE_SYSTEM_ADMIN
+    private UserRole role;
 
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @Builder.Default
+    /**
+     * DB-level timestamp via @CreationTimestamp. Uses Instant for timezone-safe compliance auditing.
+     */
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt;
 
     @Builder.Default
     @Column(name = "is_locked", nullable = false)
     private Boolean isLocked = false;
+
+    /**
+     * When set, the account auto-unlocks after this time passes.
+     * Null means the account is not on a timed lockout.
+     */
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
 
     @Builder.Default
     @Column(name = "is_temporary_password", nullable = false)
@@ -61,4 +83,21 @@ public class UserEntity {
     @Builder.Default
     @Column(name = "failed_attempts", nullable = false)
     private Integer failedAttempts = 0;
+
+    /**
+     * Entity equality based on primary key only.
+     * Prevents Hibernate issues with @Data-generated equals/hashCode that use all fields.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserEntity that = (UserEntity) o;
+        return userId != null && Objects.equals(userId, that.userId);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

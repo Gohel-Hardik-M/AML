@@ -1,15 +1,16 @@
 package com.aml.system.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
+@ToString
 @Entity
 @Builder
 @NoArgsConstructor
@@ -37,7 +38,23 @@ public class SystemAuditLog {
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 
-    @Builder.Default
+    /**
+     * DB-level timestamp. Uses Instant for timezone-safe compliance auditing.
+     */
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SystemAuditLog that = (SystemAuditLog) o;
+        return logId != null && Objects.equals(logId, that.logId);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }
