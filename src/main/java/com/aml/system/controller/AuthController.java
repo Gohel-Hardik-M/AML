@@ -1,9 +1,7 @@
 package com.aml.system.controller;
 
-import com.aml.system.dto.auth.LoginRequestDto;
-import com.aml.system.dto.auth.LoginResponseDto;
-import com.aml.system.dto.auth.MasterLoginRequestDto;
-import com.aml.system.dto.auth.PasswordResetDto;
+import com.aml.system.dto.ApiResponse;
+import com.aml.system.dto.auth.*;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.service.AuthService;
 import com.aml.system.service.MasterAuthService;
@@ -19,14 +17,14 @@ public class AuthController {
     private final AuthService authService;
     private final MasterAuthService masterAuthService;
 
-    // Injected both services here
-    public AuthController(AuthService authService, MasterAuthService masterAuthService) {
+    public AuthController(AuthService authService,
+                          MasterAuthService masterAuthService) {
         this.authService = authService;
         this.masterAuthService = masterAuthService;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDto> login(
+    public ResponseEntity<ApiResponse<LoginResponseDto>> login(
             @Valid @RequestBody LoginRequestDto request,
             HttpServletRequest httpRequest
     ) {
@@ -36,7 +34,7 @@ public class AuthController {
 
             // 2. Call the service
             LoginResponseDto response = authService.login(request, httpRequest);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
 
         } finally {
             // 3. Always clean up!
@@ -44,8 +42,12 @@ public class AuthController {
         }
     }
 
+    /**
+     * Password reset — NOW requires JWT authentication (audit finding #17).
+     * The SecurityConfig only permits /login and /master/login without JWT.
+     */
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
             @Valid @RequestBody PasswordResetDto request,
             HttpServletRequest httpRequest
     ) {
@@ -55,20 +57,20 @@ public class AuthController {
 
             // 2. Call the service
             authService.resetPassword(request, httpRequest);
-            return ResponseEntity.ok("Password updated successfully. You can now log in.");
+            return ResponseEntity.ok(ApiResponse.success("Password updated successfully. You can now log in."));
 
         } finally {
             TenantContextHolder.clear();
         }
     }
 
-    // --- NEW ENDPOINT FOR GLOBAL SAAS ADMIN ---
+    // --- ENDPOINT FOR GLOBAL SAAS ADMIN ---
     @PostMapping("/master/login")
-    public ResponseEntity<LoginResponseDto> masterLogin(
+    public ResponseEntity<ApiResponse<LoginResponseDto>> masterLogin(
             @Valid @RequestBody MasterLoginRequestDto request,
             HttpServletRequest httpRequest
     ) {
         LoginResponseDto response = masterAuthService.masterLogin(request, httpRequest);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response, "Master login successful"));
     }
 }

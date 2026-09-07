@@ -21,13 +21,11 @@ public class TenantProvisioningController {
     // Only global SYSTEM_ADMIN users can onboard brand new banks
     @PostMapping
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    public ResponseEntity<ApiResponse<String>> onboardBank(@Valid @RequestBody TenantOnboardRequestDto request) {
+    public ResponseEntity<ApiResponse<Void>> onboardBank(@Valid @RequestBody TenantOnboardRequestDto request) {
 
-        String tempPassword = tenantProvisioningService.onboardNewBank(request);
+        String resultMessage = tenantProvisioningService.onboardNewBank(request);
 
-        return ResponseEntity.ok(ApiResponse.success(
-                "Temporary Password: " + tempPassword,
-                "Tenant database provisioned, migrated, and initialized successfully."
-        ));
+        // No passwords or emails in API response (audit finding #6) — credentials go via email only
+        return ResponseEntity.ok(ApiResponse.success(resultMessage));
     }
 }

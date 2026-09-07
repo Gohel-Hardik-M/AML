@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
+import java.util.UUID;
 
 @Component
 public class MasterAdminSeeder {
@@ -40,17 +41,27 @@ public class MasterAdminSeeder {
                 return; // Flyway hasn't created the table yet, skip for now
             }
 
-            String encodedPassword = passwordEncoder.encode("admin123");
+            // Check if a master admin already exists — DO NOT overwrite (audit finding #5)
+            Integer existingCount = masterJdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM system_admins WHERE username = ?",
+                    Integer.class,
+                    "superadmin"
+            );
+
+            if (existingCount != null && existingCount > 0) {
+                log.info(">>> Master Superadmin already exists. Skipping seed (password NOT reset).");
+                return;
+            }
+
+            // First-time setup only: generate a random password and print to console
+            String generatedPassword = "Admin@" + UUID.randomUUID().toString().substring(0, 10) + "!";
+            String encodedPassword = passwordEncoder.encode(generatedPassword);
 
             masterJdbcTemplate.update(
                     """
                             INSERT INTO system_admins (admin_id, username, email, password_hash, full_name, is_active)
                             VALUES (gen_random_uuid(), ?, ?, ?, ?, true)
-                            ON CONFLICT (username) DO UPDATE
-                            SET password_hash = EXCLUDED.password_hash,
-                                email = EXCLUDED.email,
-                                full_name = EXCLUDED.full_name,
-                                is_active = true
+                            ON CONFLICT (username) DO NOTHING
                             """,
                     "superadmin",
                     "admin@aml-platform.com",
@@ -58,7 +69,13 @@ public class MasterAdminSeeder {
                     "Global System Administrator"
             );
 
-            log.info(">>> SUCCESS: Master Superadmin seeded or refreshed successfully.");
+            log.warn("========================================================");
+            log.warn("  FIRST-TIME SETUP: Master Admin Created");
+            log.warn("  Username : superadmin");
+            log.warn("  Password : {}", generatedPassword);
+            log.warn("  ** CHANGE THIS PASSWORD IMMEDIATELY **");
+            log.warn("========================================================");
+
         } catch (Exception e) {
             log.warn("Master admin seeding failed: {}", e.getMessage(), e);
         }

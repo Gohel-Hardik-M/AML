@@ -10,6 +10,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -36,24 +42,46 @@ public class SecurityConfig {
                 // 1. Disable CSRF (Not needed for stateless JWT APIs)
                 .csrf(csrf -> csrf.disable())
 
-                // 2. Set Session Management to STATELESS (No server-side memory leaks)
+                // 2. Enable CORS (audit finding #31)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 3. Set Session Management to STATELESS (No server-side memory leaks)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 3. Configure API Endpoint Access Rules
+                // 4. Configure API Endpoint Access Rules
+                // Only login endpoints are public. Reset-password now requires JWT (audit finding #17)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Open login/register endpoints to the public
-                        .anyRequest().authenticated()                   // Every other request requires a valid JWT
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/master/login").permitAll()
+                        .anyRequest().authenticated()
                 )
 
-                // 4. Bind our custom JSON Error Handlers for 401 and 403 errors
+                // 5. Bind our custom JSON Error Handlers for 401 and 403 errors
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(securityExceptionHandler)
                         .accessDeniedHandler(securityExceptionHandler)
                 )
 
-                // 5. Register our Custom JWT Filter
+                // 6. Register our Custom JWT Filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * CORS configuration to allow frontend applications from different domains.
+     * In production, restrict allowedOrigins to your actual frontend domain.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*")); // Restrict in production!
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Tenant-ID"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
