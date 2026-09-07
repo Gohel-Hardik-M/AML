@@ -28,45 +28,31 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AmlBusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleAmlBusinessException(AmlBusinessException ex, HttpServletRequest request) {
         HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST;
-
         log.warn("Business exception on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-
-        return ResponseEntity.status(status).body(
-                ApiResponse.error(ex.getMessage(), request.getRequestURI())
-        );
+        return ResponseEntity.status(status).body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // --- NEW: Handle Business Logic Errors (e.g., Duplicate Checksum from BatchService) ---
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         log.warn("Invalid argument on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                ApiResponse.error(ex.getMessage(), request.getRequestURI())
-        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // --- NEW: Handle Missing Form Parameters (e.g., forgot to attach the file) ---
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParams(MissingServletRequestParameterException ex, HttpServletRequest request) {
         String msg = "Required parameter '" + ex.getParameterName() + "' is missing.";
         log.warn("Missing parameter on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                ApiResponse.error(msg, request.getRequestURI())
-        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(msg, request.getRequestURI()));
     }
 
-    // --- NEW: Handle Bad Data Formats (e.g., wrong date format for batchDate) ---
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
         String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
         String msg = "Invalid format for parameter '" + ex.getName() + "'. Expected type: " + requiredType;
         log.warn("Type mismatch on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                ApiResponse.error(msg, request.getRequestURI())
-        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(msg, request.getRequestURI()));
     }
 
-    // --- NEW: Handle Files that are too large for Tomcat ---
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxSizeException(MaxUploadSizeExceededException ex, HttpServletRequest request) {
         log.warn("Max upload size exceeded on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
@@ -82,10 +68,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
 
         log.warn("Validation failed on [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
-
-        return ResponseEntity.badRequest().body(
-                ApiResponse.error(message, request.getRequestURI())
-        );
+        return ResponseEntity.badRequest().body(ApiResponse.error(message, request.getRequestURI()));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -96,29 +79,24 @@ public class GlobalExceptionHandler {
 
         log.warn("Data integrity violation on [{} {}]: {}", request.getMethod(), request.getRequestURI(), cause.getMessage(), ex);
 
-        return ResponseEntity.status(status).body(
-                ApiResponse.error(message, request.getRequestURI())
-        );
+        return ResponseEntity.status(status).body(ApiResponse.error(message, request.getRequestURI()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
         log.warn("Access denied on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                ApiResponse.error("Access denied.", request.getRequestURI())
-        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied.", request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUncaughtException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
-
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiResponse.error("An unexpected internal error occurred.", request.getRequestURI())
         );
     }
 
+    // --- MERGED LOGIC: Handles both Tenant/Admin rules AND Batch Checksum rules ---
     private String resolveDataIntegrityMessage(Throwable cause) {
         String msg = safeDatabaseMessage(cause.getMessage());
         if (msg == null) {
@@ -127,16 +105,22 @@ public class GlobalExceptionHandler {
 
         String lower = msg.toLowerCase();
 
-        if (isUniqueViolation(cause) && lower.contains("tenant_id")) {
-            return "Tenant already exists.";
+        // 1. Batch / CSV Upload Duplication Rules
+        if (lower.contains("checksum") || lower.contains("aml_batches")) {
+            return "Conflict: This exact file (identical checksum) already exists in the database.";
         }
 
-        if (isUniqueViolation(cause) && (lower.contains("username") || lower.contains("idx_user_tenant_username"))) {
-            return "Admin username already exists for this tenant.";
-        }
-
-        if (isUniqueViolation(cause) && lower.contains("email")) {
-            return "Admin email already exists.";
+        // 2. Tenant / Admin User Duplication Rules
+        if (isUniqueViolation(cause)) {
+            if (lower.contains("tenant_id")) {
+                return "Tenant already exists in the registry.";
+            }
+            if (lower.contains("username") || lower.contains("idx_user_tenant_username")) {
+                return "Admin username already exists for this tenant.";
+            }
+            if (lower.contains("email")) {
+                return "Admin email already exists.";
+            }
         }
 
         return "Database constraint violation: " + msg;
