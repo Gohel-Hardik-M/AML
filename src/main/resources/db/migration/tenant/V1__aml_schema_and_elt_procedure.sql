@@ -31,15 +31,14 @@ CREATE TABLE IF NOT EXISTS aml_tenant_rules (
     CONSTRAINT uk_tenant_rule UNIQUE (tenant_id, rule_code)
     );
 
--- 3. BATCH & INGESTION PIPELINE
-CREATE TABLE IF NOT EXISTS aml_batches (
-                                           batch_id UUID PRIMARY KEY,
-                                           file_name VARCHAR(255) NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-    total_records INTEGER DEFAULT 0,
-    uploaded_by VARCHAR(128),
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS batches (
+                                       id UUID PRIMARY KEY,
+                                       uploaded_by_id UUID,
+                                       file_name VARCHAR(255) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    uploaded_at TIMESTAMP NOT NULL
     );
+
 
 CREATE UNLOGGED TABLE IF NOT EXISTS aml_transactions_staging (
     transaction_id UUID NOT NULL,
@@ -154,6 +153,9 @@ CREATE TABLE IF NOT EXISTS aml_sar_filings (
     filed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+
+
+
 -- 5. ELT STORED PROCEDURE
 CREATE OR REPLACE PROCEDURE process_batch_transactions(p_batch_id UUID)
 LANGUAGE plpgsql
@@ -163,22 +165,46 @@ v_rows_merged BIGINT;
 BEGIN
     RAISE NOTICE 'Starting in-database ELT transformation for Batch ID: %', p_batch_id;
 
-INSERT INTO aml_transactions (
-    transaction_id, source_account_id, destination_account_id,
-    customer_id, amount, currency, transaction_type, country_code,
-    counterparty_country_code, counterparty_name, channel, txn_timestamp, batch_id
+INSERT INTO transactions (
+    transaction_id,
+    tenant_id,
+    source_account_id,
+    destination_account_id,
+    customer_id,
+    amount,
+    currency,
+    transaction_type,
+    country_code,
+    counterparty_country_code,
+    counterparty_name,
+    channel,
+    timestamp,
+    batch_id
 )
 SELECT
-    s.transaction_id, s.source_account_id, s.destination_account_id,
-    s.customer_id, s.amount, s.currency, s.transaction_type, s.country_code,
-    s.counterparty_country_code, s.counterparty_name, s.channel, s.txn_timestamp, s.batch_id
-FROM aml_transactions_staging s
+    s.transaction_id,
+    s.tenant_id,
+    s.source_account_id,
+    s.destination_account_id,
+    s.customer_id,
+    s.amount,
+    s.currency,
+    s.transaction_type,
+    s.country_code,
+    s.counterparty_country_code,
+    s.counterparty_name,
+    s.channel,
+    s.timestamp,
+    s.batch_id
+FROM transactions_staging s
 WHERE s.batch_id = p_batch_id
-    ON CONFLICT (transaction_id, txn_timestamp) DO NOTHING;
+    ON CONFLICT (transaction_id) DO NOTHING;
 
 GET DIAGNOSTICS v_rows_merged = ROW_COUNT;
-RAISE NOTICE 'Merged % records from staging to aml_transactions', v_rows_merged;
 
-DELETE FROM aml_transactions_staging WHERE batch_id = p_batch_id;
+RAISE NOTICE 'Merged % records from staging to transactions', v_rows_merged;
+
+DELETE FROM transactions_staging
+WHERE batch_id = p_batch_id;
 END;
 $$;

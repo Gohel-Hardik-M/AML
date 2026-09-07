@@ -62,7 +62,6 @@ public class AuthController {
         }
     }
 
-    // --- NEW ENDPOINT FOR GLOBAL SAAS ADMIN ---
     @PostMapping("/master/login")
     public ResponseEntity<LoginResponseDto> masterLogin(
             @Valid @RequestBody MasterLoginRequestDto request,

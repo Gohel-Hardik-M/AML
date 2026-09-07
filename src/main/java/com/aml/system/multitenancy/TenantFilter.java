@@ -28,7 +28,6 @@ public class TenantFilter extends OncePerRequestFilter {
             }
             filterChain.doFilter(request, response);
         } finally {
-            // Prevent ThreadLocal memory leaks in container thread pools
             TenantContextHolder.clear();
         }
     }

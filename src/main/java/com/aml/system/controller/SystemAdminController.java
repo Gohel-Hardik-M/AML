@@ -40,6 +40,7 @@ public class SystemAdminController {
                         .ruleCode(ruleCode)
                         .build());
 
+
         config.setIsEnabled(updatedConfig.getIsEnabled());
         config.setThresholdAmount(updatedConfig.getThresholdAmount());
         config.setWindowMinutes(updatedConfig.getWindowMinutes());
