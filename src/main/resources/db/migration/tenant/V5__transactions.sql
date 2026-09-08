@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS batches (
 
 CREATE TABLE IF NOT EXISTS transactions_staging (
                                                     transaction_id UUID PRIMARY KEY,
-                                                    tenant_id VARCHAR(64) NOT NULL,
     source_account_id VARCHAR(64),
     destination_account_id VARCHAR(64),
     customer_id VARCHAR(64),
@@ -30,7 +29,6 @@ CREATE TABLE IF NOT EXISTS transactions_staging (
 
 CREATE TABLE IF NOT EXISTS transactions (
                                             transaction_id UUID PRIMARY KEY,
-                                            tenant_id VARCHAR(64) NOT NULL,
     source_account_id VARCHAR(64),
     destination_account_id VARCHAR(64),
     customer_id VARCHAR(64),
@@ -46,7 +44,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     );
 
 CREATE INDEX IF NOT EXISTS idx_transactions_batch_id ON transactions(batch_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_tenant_id ON transactions(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_staging_batch_id ON transactions_staging(batch_id);
 
 
@@ -61,7 +58,6 @@ BEGIN
 
 INSERT INTO transactions (
     transaction_id,
-    tenant_id,
     source_account_id,
     destination_account_id,
     customer_id,
@@ -77,7 +73,6 @@ INSERT INTO transactions (
 )
 SELECT
     s.transaction_id,
-    s.tenant_id,
     s.source_account_id,
     s.destination_account_id,
     s.customer_id,

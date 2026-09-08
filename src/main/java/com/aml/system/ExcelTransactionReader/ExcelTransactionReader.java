@@ -66,20 +66,19 @@ public class ExcelTransactionReader {
         private  Transaction mapRowToTransaction(Row row){
             return  Transaction.builder()
                     .transactionId(parseUUID(getCellValue(row.getCell(0))))
-                    .tenantId(getCellValue(row.getCell(1)))
-                    .sourceAccountId(getCellValue(row.getCell(2)))
-                    .destinationAccountId(getCellValue(row.getCell(3)))
-                    .customerID(getCellValue(row.getCell(4)))
-                    .amount(parseAmount(row.getCell(5)))
-                    .currency(getCellValue(row.getCell(6)))
+                    .sourceAccountId(getCellValue(row.getCell(1)))
+                    .destinationAccountId(getCellValue(row.getCell(2)))
+                    .customerID(getCellValue(row.getCell(3)))
+                    .amount(parseAmount(row.getCell(4)))
+                    .currency(getCellValue(row.getCell(5)))
                     .transactionType(parseTransactionType(
-                            getCellValue(row.getCell(7))
+                            getCellValue(row.getCell(6))
                     ))
-                    .countryCode(getCellValue(row.getCell(8)))
-                    .counterpartyCountryCode(getCellValue(row.getCell(9)))
-                    .counterpartyName(getCellValue(row.getCell(10)))
-                    .channel(getCellValue(row.getCell(11)))
-                    .timestamp(parseTimestamp(row.getCell(12)))
+                    .countryCode(getCellValue(row.getCell(7)))
+                    .counterpartyCountryCode(getCellValue(row.getCell(8)))
+                    .counterpartyName(getCellValue(row.getCell(9)))
+                    .channel(getCellValue(row.getCell(10)))
+                    .timestamp(parseTimestamp(row.getCell(11)))
                     .build();
         }
 

@@ -23,8 +23,6 @@ public class Transaction {
     @Id
     private UUID transactionId;
 
-    @Column(nullable = false)
-    private String tenantId;
 
     @Column(nullable = false)
     private String sourceAccountId;

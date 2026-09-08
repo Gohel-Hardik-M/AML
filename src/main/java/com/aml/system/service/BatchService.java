@@ -16,7 +16,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import static com.aml.system.multitenancy.TenantContextHolder.getTenantId;
 
 
 @Service
@@ -38,20 +37,18 @@ public class BatchService {
 
         @Transactional
         public Batch processUpload(MultipartFile file) throws IOException {
-            String tenantIdString = TenantContextHolder.getTenantId();
-            UUID tenantId = UUID.fromString(tenantIdString);
 
 
             // 1. Read + validate entire Excel
             List<Transaction> transactions =
                     excelTransactionReader.read(file);
 
+
             // 2. Create Batch
             Batch batch = Batch.builder()
                     .fileName(file.getOriginalFilename())
                     .status(BatchStatus.PENDING)
                     .uploadedAt(LocalDateTime.now())
-                    .uploadedById(tenantId)
                     .build();
 
             Batch savedBatch = batchRepository.save(batch);
