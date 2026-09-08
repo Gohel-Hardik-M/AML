@@ -20,24 +20,30 @@ public class Transaction {
 
 
 
+    @Id
     private UUID transactionId;
 
-
+    @Column(nullable = false)
     private String tenantId;
 
+    @Column(nullable = false)
     private String sourceAccountId;
 
-
+    @Column(nullable = false)
     private String destinationAccountId;
 
+
+    @Column(name = "customer_id", nullable = false)
     private String customerID;
 
-
+    @Column(nullable = false)
     private BigDecimal amount;
 
-
+    @Column(nullable = false)
     private String currency;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TransactionType transactionType;
 
     private String countryCode;
