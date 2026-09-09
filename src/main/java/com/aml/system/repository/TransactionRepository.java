@@ -12,36 +12,18 @@ import java.util.UUID;
 public interface TransactionRepository extends JpaRepository<Transaction, UUID>{
 
 
-//
-//    @Query("""
-//
-//                SELECT COUNT(t)
-//            FROM Transaction t
-//
-//              WHERE t.timestamp >= :from
-//              AND t.timestamp <= :to
-//            """)
-//    long countCustomerTransactions(
-//
-//            @Param("customerId") String customerId,
-//            @Param("from") LocalDateTime from,
-//            @Param("to") LocalDateTime to
-//    );
-//
-//    @Query("""
-//            SELECT COALESCE(SUM(t.amount), 0)
-//            FROM Transaction t
-//            WHERE t.tenantId = :tenantId
-//              AND t.customerID = :customerId
-//              AND t.timestamp >= :from
-//              AND t.timestamp <= :to
-//            """)
-//    BigDecimal sumCustomerTransactions(
-//
-//            @Param("customerId") String customerId,
-//            @Param("from") LocalDateTime from,
-//            @Param("to") LocalDateTime to
-//    );
+        @Query("SELECT COUNT(t) FROM Transaction t " +
+                "WHERE t.customerID = :customerId AND t.timestamp BETWEEN :from AND :to")
+        long countCustomerTransactions(
+                @Param("customerId") String customerId,
+                @Param("from") LocalDateTime from,
+                @Param("to") LocalDateTime to);
 
+        @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
+                "WHERE t.customerID = :customerId AND t.timestamp BETWEEN :from AND :to")
+        BigDecimal sumCustomerTransactions(
+                @Param("customerId") String customerId,
+                @Param("from") LocalDateTime from,
+                @Param("to") LocalDateTime to);
 
 }
