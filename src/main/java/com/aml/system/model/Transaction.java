@@ -1,8 +1,6 @@
 package com.aml.system.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.SecondaryTables;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -17,28 +15,33 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(name = "transactions")
 public class Transaction {
 
 
 
+    @Id
     private UUID transactionId;
 
 
-    private String tenantId;
-
+    @Column(nullable = false)
     private String sourceAccountId;
 
-
+    @Column(nullable = false)
     private String destinationAccountId;
 
+
+    @Column(name = "customer_id", nullable = false)
     private String customerID;
 
-
+    @Column(nullable = false)
     private BigDecimal amount;
 
-
+    @Column(nullable = false)
     private String currency;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TransactionType transactionType;
 
     private String countryCode;

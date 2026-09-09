@@ -4,8 +4,11 @@ import com.aml.system.ExcelTransactionReader.ExcelTransactionReader;
 import com.aml.system.model.Batch;
 import com.aml.system.model.BatchStatus;
 import com.aml.system.model.Transaction;
+import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.repository.BatchRepository;
 import com.aml.system.repository.TransactionRepository;
+import com.aml.system.rule.RuleEngineService;
+import com.aml.system.rule.RuleEvaluationResult;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
+
 
 
 @Service
@@ -21,25 +26,28 @@ public class BatchService {
         private final BatchRepository batchRepository;
         private final TransactionRepository transactionRepository;
         private final ExcelTransactionReader excelTransactionReader;
+        private final RuleEngineService ruleEngineService;
+        private final AlertService alertService;
 
         public BatchService(
                 BatchRepository batchRepository,
                 TransactionRepository transactionRepository,
-                ExcelTransactionReader excelTransactionReader) {
+                ExcelTransactionReader excelTransactionReader,
+                RuleEngineService ruleEngineService,
+                AlertService alertService) {
 
             this.batchRepository = batchRepository;
             this.transactionRepository = transactionRepository;
             this.excelTransactionReader = excelTransactionReader;
+            this.ruleEngineService = ruleEngineService;
+            this.alertService = alertService;
         }
 
         @Transactional
         public Batch processUpload(MultipartFile file) throws IOException {
 
-            // 1. Read + validate entire Excel
-            List<Transaction> transactions =
-                    excelTransactionReader.read(file);
+            List<Transaction> transactions = excelTransactionReader.read(file);
 
-            // 2. Create Batch
             Batch batch = Batch.builder()
                     .fileName(file.getOriginalFilename())
                     .status(BatchStatus.PENDING)
@@ -48,12 +56,16 @@ public class BatchService {
 
             Batch savedBatch = batchRepository.save(batch);
 
-            // 3. Assign Batch ID to every transaction
             for (Transaction transaction : transactions) {
 
                 transaction.setBatchId(savedBatch.getId());
+                Transaction savedTransaction = transactionRepository.save(transaction);
 
-                transactionRepository.save(transaction);
+                List<RuleEvaluationResult> results = ruleEngineService.evaluate(savedTransaction);
+
+                if (!results.isEmpty()) {
+                    alertService.createAlerts(savedTransaction, results);
+                }
             }
 
             return savedBatch;

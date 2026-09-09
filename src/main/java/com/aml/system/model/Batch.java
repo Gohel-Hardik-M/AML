@@ -16,18 +16,21 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(name = "batches")
 public class Batch {
 
+        @Id
+        @GeneratedValue(strategy = GenerationType.UUID)
         private UUID id;
 
 
-        private UUID uploadedById;
 
 
+        @Column
         private String fileName;
-
+        @Column
         private BatchStatus status;
-
+        @Column
         private LocalDateTime uploadedAt;
 
 
