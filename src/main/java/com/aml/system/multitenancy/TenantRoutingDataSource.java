@@ -8,10 +8,6 @@ import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Routes database connections based on the current tenant context.
- * Uses ConcurrentHashMap for thread-safe tenant DataSource registration (audit finding #19).
- */
 public class TenantRoutingDataSource extends AbstractRoutingDataSource {
 
     private static final Logger log = LoggerFactory.getLogger(TenantRoutingDataSource.class);
@@ -19,7 +15,7 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
     private final Map<Object, Object> dataSources = new ConcurrentHashMap<>();
 
     public TenantRoutingDataSource() {
-        // Initialize with the empty map
+
         super.setTargetDataSources(dataSources);
     }
 
@@ -27,6 +23,13 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
     protected Object determineCurrentLookupKey() {
         // This tells Spring which connection to use for the current thread
         return TenantContextHolder.getTenantId();
+    }
+
+    /**
+     * Checks if a tenant DataSource is registered in the routing map.
+     */
+    public boolean hasTenant(String tenantId) {
+        return tenantId != null && dataSources.containsKey(tenantId);
     }
 
     /**
@@ -69,5 +72,24 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
         this.afterPropertiesSet();
 
         log.info("DataSource registered for tenant '{}'.", tenantId);
+    }
+
+
+    public synchronized void removeTenantDataSource(String tenantId) {
+        Object existing = dataSources.remove(tenantId);
+
+        // Close the connection pool if it exists
+        if (existing instanceof HikariDataSource existingDs) {
+            try {
+                existingDs.close();
+                log.info("Closed and removed DataSource for tenant '{}'.", tenantId);
+            } catch (Exception e) {
+                log.warn("Failed to close DataSource for tenant '{}': {}", tenantId, e.getMessage());
+            }
+        }
+
+        // Tell Spring the datasource map changed
+        this.setTargetDataSources(dataSources);
+        this.afterPropertiesSet();
     }
 }

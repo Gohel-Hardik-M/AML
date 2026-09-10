@@ -4,6 +4,8 @@ import com.aml.system.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,10 +15,16 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import jakarta.validation.ConstraintViolationException;
 
 import java.sql.SQLException;
+import java.math.BigDecimal;
 import java.util.stream.Collectors;
+import com.aml.system.multitenancy.TenantContextHolder;
 
 /**
  * Global exception handling with concise, client-friendly API errors.
@@ -36,6 +44,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         log.warn("Invalid argument on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        String message = resolveRequestBodyMessage(ex);
+        log.warn("Unreadable request body on [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
+        return ResponseEntity.badRequest().body(ApiResponse.error(message, "INVALID_REQUEST_BODY", request.getRequestURI()));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -64,11 +80,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
         String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .distinct()
                 .collect(Collectors.joining("; "));
+
+        if (message.isBlank()) {
+            message = "Request validation failed.";
+        }
 
         log.warn("Validation failed on [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
         return ResponseEntity.badRequest().body(ApiResponse.error(message, request.getRequestURI()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(
+            ConstraintViolationException ex, HttpServletRequest request) {
+        String message = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .distinct()
+                .collect(Collectors.joining("; "));
+        return ResponseEntity.badRequest().body(ApiResponse.error(message, "VALIDATION_ERROR", request.getRequestURI()));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -86,6 +117,30 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
         log.warn("Access denied on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied.", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingTenantDataSource(IllegalStateException ex, HttpServletRequest request) {
+        String tenantId = TenantContextHolder.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = request.getParameter("tenantId");
+        }
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = "unknown";
+        }
+        String message = "Tenant '" + tenantId + "' does not exist or is not active.";
+        log.warn("Tenant routing failed on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.error(message, request.getRequestURI()));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataAccessException(
+            DataAccessException ex, HttpServletRequest request) {
+        log.error("Database access failure on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(
+                "The database service is temporarily unavailable. Please try again later.",
+                "DATABASE_UNAVAILABLE",
+                request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)
@@ -152,5 +207,38 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return false;
+    }
+
+    private String resolveRequestBodyMessage(HttpMessageNotReadableException exception) {
+        Throwable cause = exception.getMostSpecificCause();
+        if (cause instanceof InvalidFormatException invalidFormatException) {
+            String field = jsonFieldPath(invalidFormatException);
+            Class<?> targetType = invalidFormatException.getTargetType();
+            if (BigDecimal.class.equals(targetType)) {
+                return "Field '" + field + "' must be a valid decimal number.";
+            }
+            if (Integer.class.equals(targetType) || int.class.equals(targetType)) {
+                return "Field '" + field + "' must be a whole number.";
+            }
+            if (Boolean.class.equals(targetType) || boolean.class.equals(targetType)) {
+                return "Field '" + field + "' must be true or false.";
+            }
+            return "Field '" + field + "' has an invalid value. Expected " + targetType.getSimpleName() + ".";
+        }
+        if (cause instanceof JsonMappingException mappingException) {
+            String field = jsonFieldPath(mappingException);
+            return "Field '" + field + "' has an invalid value or structure.";
+        }
+        return "Request body contains invalid JSON or has an unsupported value.";
+    }
+
+    private String jsonFieldPath(JsonMappingException exception) {
+        String path = exception.getPath().stream()
+                .map(reference -> reference.getFieldName() != null
+                        ? reference.getFieldName()
+                        : String.valueOf(reference.getIndex()))
+                .filter(part -> !"null".equals(part))
+                .collect(Collectors.joining("."));
+        return path.isBlank() ? "request body" : path;
     }
 }

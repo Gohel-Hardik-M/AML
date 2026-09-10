@@ -2,11 +2,14 @@ package com.aml.system.controller;
 
 import com.aml.system.dto.ApiResponse;
 import com.aml.system.dto.auth.*;
+import com.aml.system.exception.AmlBusinessException;
 import com.aml.system.multitenancy.TenantContextHolder;
+import com.aml.system.multitenancy.TenantRoutingDataSource;
 import com.aml.system.service.AuthService;
 import com.aml.system.service.MasterAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,11 +19,14 @@ public class AuthController {
 
     private final AuthService authService;
     private final MasterAuthService masterAuthService;
+    private final TenantRoutingDataSource routingDataSource;
 
     public AuthController(AuthService authService,
-                          MasterAuthService masterAuthService) {
+                          MasterAuthService masterAuthService,
+                          TenantRoutingDataSource routingDataSource) {
         this.authService = authService;
         this.masterAuthService = masterAuthService;
+        this.routingDataSource = routingDataSource;
     }
 
     @PostMapping("/login")
@@ -28,9 +34,18 @@ public class AuthController {
             @Valid @RequestBody LoginRequestDto request,
             HttpServletRequest httpRequest
     ) {
+        String tenantId = request.getTenantId() != null ? request.getTenantId().trim() : null;
+        if (tenantId != null) {
+            tenantId = tenantId.toUpperCase(java.util.Locale.ROOT);
+            request.setTenantId(tenantId);
+        }
+        if (!routingDataSource.hasTenant(tenantId)) {
+            throw new AmlBusinessException("Tenant '" + tenantId + "' does not exist or is not active.", HttpStatus.BAD_REQUEST);
+        }
+
         try {
             // 1. Set the database context BEFORE the transactional service is called
-            TenantContextHolder.setTenantId(request.getTenantId());
+            TenantContextHolder.setTenantId(tenantId);
 
             // 2. Call the service
             LoginResponseDto response = authService.login(request, httpRequest);
@@ -51,9 +66,14 @@ public class AuthController {
             @Valid @RequestBody PasswordResetDto request,
             HttpServletRequest httpRequest
     ) {
+        String tenantId = request.getTenantId() != null ? request.getTenantId().trim() : null;
+        if (!routingDataSource.hasTenant(tenantId)) {
+            throw new AmlBusinessException("Tenant '" + tenantId + "' does not exist or is not active.", HttpStatus.BAD_REQUEST);
+        }
+
         try {
             // 1. Set context before transaction
-            TenantContextHolder.setTenantId(request.getTenantId());
+            TenantContextHolder.setTenantId(tenantId);
 
             // 2. Call the service
             authService.resetPassword(request, httpRequest);

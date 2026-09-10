@@ -6,6 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,5 +32,21 @@ class GlobalExceptionHandlerTest {
         assertEquals("Tenant 'BANKA' already exists.", body.getMessage());
         assertEquals("/api/v1/master/tenants", body.getPath());
         assertNotNull(body.getTimestamp());
+    }
+
+    @Test
+    void shouldExplainInvalidDecimalRequestField() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        HttpServletRequest request = new MockHttpServletRequest("PUT", "/api/v1/bank-admin/rules/SMURFING_001");
+        InvalidFormatException cause = InvalidFormatException.from(
+                null, "Cannot deserialize value", "asdwhif", BigDecimal.class);
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleUnreadableMessage(
+                new HttpMessageNotReadableException("Invalid request body", cause), request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Field 'request body' must be a valid decimal number.", response.getBody().getMessage());
+        assertEquals("INVALID_REQUEST_BODY", response.getBody().getErrorCode());
     }
 }
