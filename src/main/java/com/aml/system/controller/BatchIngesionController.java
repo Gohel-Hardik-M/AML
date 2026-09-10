@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 
 @RestController
@@ -21,6 +22,7 @@ public class BatchIngesionController {
         }
 
         @PostMapping("/upload")
+        @PreAuthorize("hasRole('TENANT_ADMIN')")
         public ResponseEntity<String> uploadExcelBatch(
                 @RequestParam("file") MultipartFile file) {
 

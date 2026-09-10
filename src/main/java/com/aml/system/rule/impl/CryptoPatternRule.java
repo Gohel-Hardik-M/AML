@@ -1,5 +1,6 @@
 package com.aml.system.rule.impl;
 
+import com.aml.system.model.TenantRuleConfig;
 import com.aml.system.model.Transaction;
 import com.aml.system.model.TransactionType;
 import com.aml.system.rule.AmlRule;
@@ -8,59 +9,42 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
-
 @Component
 public class CryptoPatternRule implements AmlRule {
 
+    @Override
+    public String getRuleCode() {
+        return "CRYPTO_001";
+    }
 
-        private static final BigDecimal THRESHOLD =
-                new BigDecimal("10000");
+    @Override
+    public String getRuleName() {
+        return "Cryptocurrency Transaction Pattern";
+    }
 
-        @Override
-        public String getRuleCode() {
-            return "CRYPTO_001";
+    @Override
+    public RuleEvaluationResult evaluate(Transaction transaction, TenantRuleConfig config) {
+        if (transaction.getAmount() == null || config == null || config.getThresholdAmount() == null) {
+            return RuleEvaluationResult.notTriggered(getRuleCode(), getRuleName());
         }
 
-        @Override
-        public String getRuleName() {
-            return "Crypto Transaction Pattern";
-        }
+        BigDecimal threshold = config.getThresholdAmount();
 
-        @Override
-        public RuleEvaluationResult evaluate(Transaction transaction) {
+        boolean cryptoTransaction =
+                transaction.getTransactionType() == TransactionType.CRYPTO_PURCHASE
+                        || transaction.getTransactionType() == TransactionType.CRYPTO_DISBURSEMENT;
 
-            if (transaction.getAmount() == null) {
-
-                return RuleEvaluationResult.notTriggered(
-                        getRuleCode(),
-                        getRuleName()
-                );
-            }
-
-            boolean cryptoTransaction =
-                    transaction.getTransactionType()
-                            == TransactionType.CRYPTO_PURCHASE
-                            ||
-                            transaction.getTransactionType()
-                                    == TransactionType.CRYPTO_DISBURSEMENT;
-
-            if (cryptoTransaction
-                    && transaction.getAmount()
-                    .compareTo(THRESHOLD) >= 0) {
-
-                return RuleEvaluationResult.triggered(
-                        getRuleCode(),
-                        getRuleName(),
-                        "MEDIUM",
-                        transaction.getAmount(),
-                        "Crypto-related transaction exceeds the configured monitoring threshold."
-                );
-            }
-
-            return RuleEvaluationResult.notTriggered(
+        if (cryptoTransaction && transaction.getAmount().compareTo(threshold) >= 0) {
+            return RuleEvaluationResult.triggered(
                     getRuleCode(),
-                    getRuleName()
+                    getRuleName(),
+                    "MEDIUM",
+                    transaction.getAmount(),
+                    "Crypto-related transaction (" + transaction.getAmount()
+                            + ") meets or exceeds the configured monitoring threshold (" + threshold + ")."
             );
         }
 
+        return RuleEvaluationResult.notTriggered(getRuleCode(), getRuleName());
+    }
 }

@@ -139,4 +139,42 @@ public class DynamicTenantDatabaseService {
             );
         }
     }
+
+    /**
+     * Rollback method called when tenant provisioning partially succeeds
+     * but email sending fails. Drops the tenant DB and removes the registry entry.
+     *
+     * This is a "compensation" pattern — we undo what we did since we can't use
+     * a single DB transaction across multiple databases.
+     */
+    public void rollbackTenantProvisioning(String tenantId) {
+        String sanitizedTenantId = tenantId.replaceAll("[^a-zA-Z0-9_]", "");
+        String dbName = "aml_" + sanitizedTenantId.toLowerCase();
+
+        log.info("Rolling back tenant provisioning for '{}'", tenantId);
+
+        // Step 1: Remove from registry
+        try {
+            masterJdbcTemplate.update("DELETE FROM aml_tenant_registry WHERE tenant_id = ?", tenantId);
+            log.info("Rollback: Removed registry entry for tenant '{}'", tenantId);
+        } catch (Exception e) {
+            log.error("Rollback: Failed to remove registry entry for '{}': {}", tenantId, e.getMessage());
+        }
+
+        // Step 2: Remove from routing datasource
+        try {
+            routingDataSource.removeTenantDataSource(tenantId);
+            log.info("Rollback: Removed datasource for tenant '{}'", tenantId);
+        } catch (Exception e) {
+            log.error("Rollback: Failed to remove datasource for '{}': {}", tenantId, e.getMessage());
+        }
+
+        // Step 3: Drop the database
+        try {
+            masterJdbcTemplate.execute("DROP DATABASE IF EXISTS \"" + dbName + "\"");
+            log.info("Rollback: Dropped database '{}'", dbName);
+        } catch (Exception e) {
+            log.error("Rollback: Failed to drop database '{}': {}", dbName, e.getMessage());
+        }
+    }
 }

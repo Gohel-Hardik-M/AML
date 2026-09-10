@@ -5,21 +5,25 @@ import com.aml.system.model.Batch;
 import com.aml.system.model.BatchStatus;
 import com.aml.system.model.Transaction;
 import com.aml.system.multitenancy.TenantContextHolder;
+import com.aml.system.model.TenantRuleConfig;
 import com.aml.system.repository.BatchRepository;
 import com.aml.system.repository.TransactionRepository;
+import com.aml.system.repository.TenantRuleConfigRepository;
 import com.aml.system.rule.RuleEngineService;
 import com.aml.system.rule.RuleEvaluationResult;
+import com.aml.system.rule.RuleEvaluationContext;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
-
-
-
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+@Slf4j
 @Service
 public class BatchService {
 
@@ -28,23 +32,31 @@ public class BatchService {
         private final ExcelTransactionReader excelTransactionReader;
         private final RuleEngineService ruleEngineService;
         private final AlertService alertService;
+        private final TenantRuleConfigRepository tenantRuleConfigRepository;
 
         public BatchService(
                 BatchRepository batchRepository,
                 TransactionRepository transactionRepository,
                 ExcelTransactionReader excelTransactionReader,
                 RuleEngineService ruleEngineService,
-                AlertService alertService) {
+                AlertService alertService,
+                TenantRuleConfigRepository tenantRuleConfigRepository) {
 
             this.batchRepository = batchRepository;
             this.transactionRepository = transactionRepository;
             this.excelTransactionReader = excelTransactionReader;
             this.ruleEngineService = ruleEngineService;
             this.alertService = alertService;
+            this.tenantRuleConfigRepository = tenantRuleConfigRepository;
         }
 
         @Transactional
         public Batch processUpload(MultipartFile file) throws IOException {
+
+                        String tenantId = TenantContextHolder.getTenantId();
+                        if (tenantId == null || tenantId.isBlank()) {
+                                throw new IllegalStateException("Tenant context is missing. Login as a bank administrator before uploading.");
+                        }
 
             List<Transaction> transactions = excelTransactionReader.read(file);
 
@@ -56,18 +68,38 @@ public class BatchService {
 
             Batch savedBatch = batchRepository.save(batch);
 
-            for (Transaction transaction : transactions) {
+            transactions.forEach(transaction -> transaction.setBatchId(savedBatch.getId()));
+            List<Transaction> savedTransactions = transactionRepository.saveAll(transactions);
+            Map<String, List<Transaction>> transactionsByCustomer = savedTransactions.stream()
+                    .collect(Collectors.groupingBy(Transaction::getCustomerID));
+            RuleEvaluationContext evaluationContext = new RuleEvaluationContext(transactionsByCustomer);
+            Map<String, TenantRuleConfig> activeConfigs = tenantRuleConfigRepository.findByTenantId(
+                            tenantId).stream()
+                    .filter(config -> Boolean.TRUE.equals(config.getIsEnabled()))
+                    .collect(Collectors.toMap(TenantRuleConfig::getRuleCode, Function.identity(), (first, second) -> first));
 
-                transaction.setBatchId(savedBatch.getId());
-                Transaction savedTransaction = transactionRepository.save(transaction);
+            if (activeConfigs.isEmpty()) {
+                throw new IllegalStateException(
+                        "No enabled AML rules are configured for tenant '" + tenantId
+                                + "'. Allocate and enable rules before uploading transactions.");
+            }
 
-                List<RuleEvaluationResult> results = ruleEngineService.evaluate(savedTransaction);
+            int alertCount = 0;
+            for (Transaction savedTransaction : savedTransactions) {
+
+                List<RuleEvaluationResult> results = ruleEngineService.evaluate(
+                        savedTransaction, activeConfigs, evaluationContext);
 
                 if (!results.isEmpty()) {
                     alertService.createAlerts(savedTransaction, results);
+                    alertCount += results.size();
                 }
             }
 
+            savedBatch.setStatus(BatchStatus.PROCESSED);
+            batchRepository.save(savedBatch);
+            log.info("Processed batch '{}' with {} transactions and {} alerts using {} active rules.",
+                    savedBatch.getId(), savedTransactions.size(), alertCount, activeConfigs.size());
             return savedBatch;
         }
 
