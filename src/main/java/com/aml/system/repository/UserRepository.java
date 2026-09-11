@@ -1,6 +1,7 @@
 package com.aml.system.repository;
 
 import com.aml.system.model.UserEntity;
+import com.aml.system.model.UserRole;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,8 +34,9 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
             @Param("username") String username
     );
 
-    /**
-     * Paginated query for listing users by tenant.
-     */
     Page<UserEntity> findByTenantId(String tenantId, Pageable pageable);
+    Page<UserEntity> findByTenantIdAndRole(String tenantId, UserRole role, Pageable pageable);
+    java.util.List<UserEntity> findByTenantIdAndRole(String tenantId, UserRole role);
+    Optional<UserEntity> findByEmail(String email);
+    Optional<UserEntity> findByTenantIdAndUserId(String tenantId, UUID userId);
 }

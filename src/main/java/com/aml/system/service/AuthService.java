@@ -11,6 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,12 +31,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuditLogService auditLogService;
+    private final JdbcTemplate masterJdbcTemplate;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, AuditLogService auditLogService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
+                       AuditLogService auditLogService,
+                       @Qualifier("masterJdbcTemplate") JdbcTemplate masterJdbcTemplate) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.auditLogService = auditLogService;
+        this.masterJdbcTemplate = masterJdbcTemplate;
     }
 
     /**
@@ -45,6 +51,22 @@ public class AuthService {
     public LoginResponseDto login(LoginRequestDto request, HttpServletRequest httpRequest) {
         String tenantId = request.getTenantId();
         String username = request.getUsername();
+
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new AmlBusinessException("Tenant ID is required.", HttpStatus.BAD_REQUEST);
+        }
+        tenantId = tenantId.trim().toUpperCase(java.util.Locale.ROOT);
+        Integer activeTenantCount = masterJdbcTemplate.queryForObject(
+            "SELECT count(*) FROM aml_tenant_registry WHERE tenant_id = ? AND is_active = TRUE",
+            Integer.class,
+            tenantId
+        );
+        if (activeTenantCount == null || activeTenantCount == 0) {
+            throw new AmlBusinessException(
+                "Tenant '" + tenantId + "' does not exist or is not active.",
+                HttpStatus.BAD_REQUEST
+            );
+        }
 
         // Uses PESSIMISTIC_WRITE lock to prevent concurrent login attempts
         // from causing lost updates on failed_attempts counter.

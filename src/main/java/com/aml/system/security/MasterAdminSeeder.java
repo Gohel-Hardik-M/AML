@@ -69,12 +69,10 @@ public class MasterAdminSeeder {
                     "Global System Administrator"
             );
 
-            log.warn("========================================================");
-            log.warn("  FIRST-TIME SETUP: Master Admin Created");
+
             log.warn("  Username : superadmin");
             log.warn("  Password : {}", generatedPassword);
-            log.warn("  ** CHANGE THIS PASSWORD IMMEDIATELY **");
-            log.warn("========================================================");
+
 
         } catch (Exception e) {
             log.warn("Master admin seeding failed: {}", e.getMessage(), e);

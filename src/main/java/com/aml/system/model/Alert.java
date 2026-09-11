@@ -48,6 +48,7 @@ public class Alert {
         @Column(name = "detection_metadata_json", columnDefinition = "TEXT")
         private String detectionMetadataJson;
 
+        @Builder.Default
         @Column(name = "is_reviewed", nullable = false)
         private boolean reviewed = false;
 
@@ -59,6 +60,22 @@ public class Alert {
 
         @Column(name = "tenant_id")
         private String tenantId;
+
+        // The compliance officer assigned to review this alert (set by Bank Admin)
+        @Column(name = "assigned_officer_id")
+        private UUID assignedOfficerId;
+
+        @Column(name = "reviewed_at")
+        private LocalDateTime reviewedAt;
+
+        @Column(name = "reviewed_by", length = 128)
+        private String reviewedBy;
+
+        @Column(name = "review_decision", length = 64)
+        private String reviewDecision;
+
+        @Column(name = "review_notes", columnDefinition = "TEXT")
+        private String reviewNotes;
 
         @Column(name = "created_at")
         private LocalDateTime createdAt;

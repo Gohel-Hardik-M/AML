@@ -54,7 +54,6 @@ public class ExcelTransactionReader {
 
                     transactionValidator.validate(transaction, excelRowNumber);
 
-                    System.out.println("Row "+ excelRowNumber+ " is valid.");
                     transactions.add(transaction);
 
                 }
