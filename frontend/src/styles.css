@@ -1,0 +1,57 @@
+:root {
+	--aml-ink: #273747;
+	--aml-muted: #6d7d8c;
+	--aml-sidebar: #263847;
+	--aml-sidebar-strong: #1b2a38;
+	--aml-accent: #7aa7c2;
+	--aml-paper: #f2f6f9;
+	--aml-surface: #ffffff;
+	--aml-border: #d8e2ea;
+	--bs-primary: #5d8da8;
+	--bs-primary-rgb: 93, 141, 168;
+	--bs-success: #5d8da8;
+	--bs-success-rgb: 93, 141, 168;
+	--bs-link-color: #466f89;
+	--bs-link-hover-color: #34566b;
+	--bs-body-color: var(--aml-ink);
+	--bs-body-bg: var(--aml-paper);
+	--bs-border-color: var(--aml-border);
+}
+html, body { min-height: 100%; }
+body { color: var(--aml-ink); background: var(--aml-paper); }
+.bg-body-tertiary, .bg-light-subtle { background-color: var(--aml-paper) !important; }
+.bg-white, .card, .modal-content { background-color: var(--aml-surface) !important; }
+.form-label { color: var(--aml-ink); }
+.form-control, .form-select { border-color: var(--aml-border); }
+.form-control:focus, .form-select:focus { border-color: var(--aml-accent); box-shadow: 0 0 0 .2rem rgba(122,167,194,.2); }
+.btn-primary { --bs-btn-bg: #5d8da8; --bs-btn-border-color: #5d8da8; --bs-btn-hover-bg: #4c7891; --bs-btn-hover-border-color: #4c7891; --bs-btn-active-bg: #3e6377; --bs-btn-active-border-color: #3e6377; }
+.btn-outline-primary { --bs-btn-color: #466f89; --bs-btn-border-color: #7aa7c2; --bs-btn-hover-bg: #5d8da8; --bs-btn-hover-border-color: #5d8da8; --bs-btn-active-bg: #4c7891; --bs-btn-active-border-color: #4c7891; }
+.text-primary { color: #466f89 !important; }
+.text-success { color: #466f89 !important; }
+.text-bg-success { background-color: #5d8da8 !important; }
+.sidebar { width: 248px; min-width: 248px; }
+.sidebar-shell { background: var(--aml-sidebar); box-shadow: inset -1px 0 rgba(255,255,255,.08); }
+.sidebar-brand { display: flex; align-items: center; gap: .7rem; color: #fffaf5 !important; font-size: 1.2rem; letter-spacing: .04em; text-decoration: none; }
+.sidebar .nav-link { border: 1px solid transparent; border-radius: .55rem; color: rgba(255,255,255,.72) !important; padding: .68rem .8rem; transition: background-color .18s ease, color .18s ease, border-color .18s ease; }
+.sidebar .nav-link:hover { color: #fff !important; background: rgba(255,255,255,.08); }
+.sidebar .nav-link.active { color: #fff !important; background: rgba(122,167,194,.2); border-color: rgba(122,167,194,.38); box-shadow: inset 3px 0 var(--aml-accent); }
+.sidebar-mobile-title { display: flex; align-items: center; gap: .65rem; font-weight: 700; letter-spacing: .04em; }
+.brand-mark { width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--aml-accent); color: #fffaf5; font-size: 1.5rem; font-weight: 800; }
+.brand-mark-sm { width: 30px; height: 30px; border-radius: 8px; font-size: 1rem; }
+.border-dashed { border-style: dashed !important; }
+.min-w-0 { min-width: 0; }
+.table > :not(caption) > * > * { padding-top: .9rem; padding-bottom: .9rem; }
+.global-loading { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(39,55,71,.16); pointer-events: none; }
+.global-loading-panel { position: relative; display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border: 1px solid rgba(122,167,194,.3); border-radius: 1rem; background: rgba(255,255,255,.96); box-shadow: 0 .75rem 2rem rgba(39,55,71,.16); }
+.global-loading-panel .spinner-border { width: 1.8rem; height: 1.8rem; }
+.global-loading-bar { position: absolute; right: .75rem; bottom: .7rem; left: .75rem; height: 2px; overflow: hidden; border-radius: 99px; background: #dce7ef; }
+.global-loading-bar::after { display: block; width: 42%; height: 100%; border-radius: inherit; background: var(--aml-accent); content: ''; animation: global-loading-progress 1.05s ease-in-out infinite; }
+@keyframes global-loading-progress { 0% { transform: translateX(-140%); } 55% { transform: translateX(150%); } 100% { transform: translateX(260%); } }
+@media (max-width: 991.98px) {
+	.container-fluid { padding-left: 1rem !important; padding-right: 1rem !important; }
+	.table-responsive { border-radius: .375rem; }
+	.table-responsive > .table { min-width: 700px; }
+}
+@media (max-width: 575.98px) {
+	.toast-container { width: calc(100% - 1rem); right: .5rem; left: .5rem; }
+}
