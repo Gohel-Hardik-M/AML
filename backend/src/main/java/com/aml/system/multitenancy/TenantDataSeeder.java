@@ -36,9 +36,16 @@ public class TenantDataSeeder {
         this.masterJdbcTemplate = new JdbcTemplate(masterDataSource);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${aml.multitenancy.auto-init:true}")
+    private boolean autoInitEnabled;
+
     @Order(2)
     @EventListener(ApplicationReadyEvent.class)
     public void seedAdminUsers() {
+        if (!autoInitEnabled) {
+            log.info("Multi-tenant admin seeding disabled in current profile/configuration.");
+            return;
+        }
 
         // 1. Dynamically fetch all active tenants from the master registry
         List<Map<String, Object>> tenants = masterJdbcTemplate.queryForList(

@@ -31,9 +31,16 @@ public class TenantInitializationService {
     @Autowired
     private CredentialEncryptionService encryptionService;
 
+    @org.springframework.beans.factory.annotation.Value("${aml.multitenancy.auto-init:true}")
+    private boolean autoInitEnabled;
+
     @Order(1)
     @EventListener(ApplicationReadyEvent.class)
     public void initializeTenantsOnStartup() {
+        if (!autoInitEnabled) {
+            log.info("Multi-tenant physical database auto-init is disabled in current profile/configuration.");
+            return;
+        }
         log.info("=== Starting Multi-Tenant Database Initialization ===");
 
         log.info("Migrating Master Database...");

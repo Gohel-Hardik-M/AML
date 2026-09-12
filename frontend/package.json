@@ -2,11 +2,11 @@
   "name": "aml-frontend",
   "version": "0.0.0",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "ng": "node -r ./node-compat.cjs ./node_modules/@angular/cli/bin/ng.js",
+    "start": "node -r ./node-compat.cjs ./node_modules/@angular/cli/bin/ng.js serve",
+    "build": "node -r ./node-compat.cjs ./node_modules/@angular/cli/bin/ng.js build",
+    "watch": "node -r ./node-compat.cjs ./node_modules/@angular/cli/bin/ng.js build --watch --configuration development",
+    "test": "node -r ./node-compat.cjs ./node_modules/@angular/cli/bin/ng.js test"
   },
   "private": true,
   "packageManager": "npm@11.13.0",

@@ -21,8 +21,15 @@ public class RuleCatalogInitializer {
         this.masterJdbcTemplate = new JdbcTemplate(masterDataSource);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${aml.multitenancy.auto-init:true}")
+    private boolean autoInitEnabled;
+
     @EventListener(ApplicationReadyEvent.class)
     public void initializeCatalog() {
+        if (!autoInitEnabled) {
+            log.info("Global Rule Catalog check disabled in current profile/configuration.");
+            return;
+        }
         log.info("Checking AML Global Rule Catalog initialization on app start...");
 
         try {

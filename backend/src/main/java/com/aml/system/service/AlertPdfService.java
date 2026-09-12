@@ -117,8 +117,19 @@ public class AlertPdfService {
                 }
                 while (!remaining.isEmpty()) {
                     int breakAt = remaining.length();
-                    while (breakAt > 1 && font.getStringWidth(remaining.substring(0, breakAt)) / 1000 * size > width) {
-                        breakAt--;
+                    if (font.getStringWidth(remaining) / 1000f * size > width) {
+                        int low = 1;
+                        int high = remaining.length();
+                        breakAt = 1;
+                        while (low <= high) {
+                            int mid = (low + high) >>> 1;
+                            if (font.getStringWidth(remaining.substring(0, mid)) / 1000f * size <= width) {
+                                breakAt = mid;
+                                low = mid + 1;
+                            } else {
+                                high = mid - 1;
+                            }
+                        }
                     }
                     if (breakAt < remaining.length()) {
                         int space = remaining.lastIndexOf(' ', breakAt);
