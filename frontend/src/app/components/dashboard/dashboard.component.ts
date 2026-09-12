@@ -10,7 +10,6 @@ import { Alert } from '../../models';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent {
   alerts: Alert[] = [];

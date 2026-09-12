@@ -11,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Service
 public class DynamicTenantDatabaseService {
 
@@ -19,6 +22,7 @@ public class DynamicTenantDatabaseService {
     private final JdbcTemplate masterJdbcTemplate;
     private final TenantRoutingDataSource routingDataSource;
     private final CredentialEncryptionService encryptionService;
+    private final Set<String> databasesCreatedByProvisioning = ConcurrentHashMap.newKeySet();
 
     @Value("${spring.datasource.username}")
     private String dbUsername;
@@ -70,6 +74,9 @@ public class DynamicTenantDatabaseService {
         );
 
         boolean dbCreatedByUs = false;
+        boolean routingRegistered = false;
+        boolean registryInserted = false;
+        String jdbcUrl = "jdbc:postgresql://localhost:5432/" + dbName;
 
         try {
             // 1. Create the brand new database via Master connection if needed
@@ -77,12 +84,11 @@ public class DynamicTenantDatabaseService {
             if (existingDatabase == null || existingDatabase == 0) {
                 masterJdbcTemplate.execute("CREATE DATABASE \"" + dbName + "\"");
                 dbCreatedByUs = true;
+                databasesCreatedByProvisioning.add(tenantId);
                 log.info("Created database: {}", dbName);
             }
 
             // 2. Generate the dynamic connection string
-            String jdbcUrl = "jdbc:postgresql://localhost:5432/" + dbName;
-
             // 3. Run Flyway automatically on the new database
             Flyway flyway = Flyway.configure()
                     .dataSource(jdbcUrl, dbUsername, dbPassword)
@@ -94,6 +100,7 @@ public class DynamicTenantDatabaseService {
 
             // 4. Inject it into the live router so it works instantly without restarting
             routingDataSource.addTenantDataSource(tenantId, jdbcUrl, dbUsername, dbPassword);
+            routingRegistered = true;
 
             // 5. Encrypt credentials before persisting to registry (audit finding #18)
             String encryptedPassword = encryptionService.encrypt(dbPassword);
@@ -111,17 +118,27 @@ public class DynamicTenantDatabaseService {
                         HttpStatus.CONFLICT
                 );
             }
+            registryInserted = true;
 
             log.info("Tenant '{}' provisioned successfully.", tenantId);
 
-        } catch (AmlBusinessException e) {
-            throw e; // Re-throw business exceptions as-is
         } catch (Exception e) {
             // Compensation: rollback partial state on unexpected failures
             log.error("Tenant provisioning failed for '{}'. Initiating compensation.", tenantId, e);
 
             // Remove from registry if it was inserted
-            masterJdbcTemplate.update("DELETE FROM aml_tenant_registry WHERE tenant_id = ?", tenantId);
+            if (registryInserted) {
+                masterJdbcTemplate.update("DELETE FROM aml_tenant_registry WHERE tenant_id = ? AND db_url = ?",
+                    tenantId, jdbcUrl);
+            }
+
+            if (routingRegistered) {
+                try {
+                    routingDataSource.removeTenantDataSource(tenantId);
+                } catch (Exception removeEx) {
+                    log.error("Compensation: failed to remove datasource for '{}': {}", tenantId, removeEx.getMessage());
+                }
+            }
 
             // Drop the database if we created it
             if (dbCreatedByUs) {
@@ -131,6 +148,10 @@ public class DynamicTenantDatabaseService {
                 } catch (Exception dropEx) {
                     log.error("Compensation: failed to drop database '{}': {}", dbName, dropEx.getMessage());
                 }
+            }
+
+            if (e instanceof AmlBusinessException businessException) {
+                throw businessException;
             }
 
             throw new AmlBusinessException(
@@ -169,12 +190,16 @@ public class DynamicTenantDatabaseService {
             log.error("Rollback: Failed to remove datasource for '{}': {}", tenantId, e.getMessage());
         }
 
-        // Step 3: Drop the database
-        try {
-            masterJdbcTemplate.execute("DROP DATABASE IF EXISTS \"" + dbName + "\"");
-            log.info("Rollback: Dropped database '{}'", dbName);
-        } catch (Exception e) {
-            log.error("Rollback: Failed to drop database '{}': {}", dbName, e.getMessage());
+        // Step 3: Drop only a database created by this provisioning operation.
+        if (databasesCreatedByProvisioning.remove(tenantId)) {
+            try {
+                masterJdbcTemplate.execute("DROP DATABASE IF EXISTS \"" + dbName + "\"");
+                log.info("Rollback: Dropped database '{}'", dbName);
+            } catch (Exception e) {
+                log.error("Rollback: Failed to drop database '{}': {}", dbName, e.getMessage());
+            }
+        } else {
+            log.info("Rollback: Preserved pre-existing database '{}'", dbName);
         }
     }
 }

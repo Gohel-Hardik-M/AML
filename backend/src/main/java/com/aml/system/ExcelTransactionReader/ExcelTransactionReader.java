@@ -44,6 +44,7 @@ public class ExcelTransactionReader {
                 if(headerRow == null){
                     throw new  IllegalArgumentException("Excel Header is missing");
                 }
+                validateHeader(headerRow, formulaEvaluator);
 
                 for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++){
 
@@ -229,6 +230,19 @@ public class ExcelTransactionReader {
                 }
             }
             return true;
+        }
+
+        private void validateHeader(Row headerRow, FormulaEvaluator formulaEvaluator) {
+            String[] expected = {"transaction_id", "source_account_id", "destination_account_id", "customer_id",
+                    "amount", "currency", "transaction_type", "country_code", "counterparty_country_code",
+                    "counterparty_name", "channel", "timestamp"};
+            for (int index = 0; index < expected.length; index++) {
+                String actual = getCellValue(headerRow.getCell(index), formulaEvaluator);
+                if (actual == null || !expected[index].equals(actual.trim().toLowerCase(Locale.ROOT))) {
+                    throw new IllegalArgumentException("Invalid Excel header at column " + (index + 1)
+                            + ". Expected '" + expected[index] + "'.");
+                }
+            }
         }
 
         private String normalizeCode(String value) {

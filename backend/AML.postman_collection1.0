@@ -101,7 +101,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"tenantId\": \"{{tenantId}}\", \"username\": \"{{username}}\", \"currentPassword\": \"{{currentPassword}}\", \"newPassword\": \"{{newPassword}}\"}",
+              "raw": "{\n  \"currentPassword\": \"{{currentPassword}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -122,7 +122,7 @@
                 "reset-password"
               ]
             },
-            "description": "Generated from cURL: curl -X POST \"{{baseUrl}}/api/v1/auth/reset-password\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer {{token}}\" -d '{\"tenantId\": \"\", \"currentPassword\": \"\", \"newPassword\": \"\"}'"
+            "description": "JWT tenant and username are taken from the authenticated token. Body contains only currentPassword and newPassword."
           },
           "response": []
         }
@@ -357,7 +357,7 @@
       ]
     },
     {
-      "name": "Transactions & Alerts",
+      "name": "Bank Admin (TENANT_ADMIN) - Transactions & Alerts",
       "item": [
         {
           "name": "Upload Transaction Excel",
@@ -374,8 +374,8 @@
               "formdata": [
                 {
                   "key": "file",
-                  "value": "file",
-                  "type": "text"
+                  "type": "file",
+                  "src": "{{uploadFile}}"
                 }
               ]
             },
@@ -981,7 +981,7 @@
           "request": {
             "method": "PUT",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}},
+            "body": {"mode": "raw", "raw": "{\n  \"reviewNotes\": \"Reviewed and resolved after investigation.\"\n}", "options": {"raw": {"language": "json"}}},
             "url": {"raw": "{{baseUrl}}/api/v1/compliance/alerts/{{alertId}}/close", "host": ["{{baseUrl}}"], "path": ["api", "v1", "compliance", "alerts", "{{alertId}}", "close"]}
           },
           "response": []
@@ -991,7 +991,7 @@
           "request": {
             "method": "POST",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}},
+            "body": {"mode": "raw", "raw": "{\n  \"reviewNotes\": \"Reviewed and resolved before PDF generation.\"\n}", "options": {"raw": {"language": "json"}}},
             "url": {"raw": "{{baseUrl}}/api/v1/compliance/alerts/{{alertId}}/pdf", "host": ["{{baseUrl}}"], "path": ["api", "v1", "compliance", "alerts", "{{alertId}}", "pdf"]}
           },
           "response": []
@@ -1050,6 +1050,7 @@
     {"key": "tenantRuleCodes", "value": "STRUCTURING_001,VELOCITY_001"},
     {"key": "batchId", "value": ""},
     {"key": "alertId", "value": ""},
+    {"key": "uploadFile", "value": ""},
     {
       "key": "json_web_token_1bti",
       "secret": true

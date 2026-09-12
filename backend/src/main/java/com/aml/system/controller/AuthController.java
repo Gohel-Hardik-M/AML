@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -64,11 +65,15 @@ public class AuthController {
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @Valid @RequestBody PasswordResetDto request,
-            HttpServletRequest httpRequest
+            HttpServletRequest httpRequest,
+            Principal principal
     ) {
-        String tenantId = request.getTenantId() != null ? request.getTenantId().trim() : null;
+        String tenantId = TenantContextHolder.getTenantId();
+        if (principal == null || tenantId == null || tenantId.isBlank()) {
+            throw new AmlBusinessException("Authenticated user context is required.", HttpStatus.UNAUTHORIZED);
+        }
         if (!routingDataSource.hasTenant(tenantId)) {
-            throw new AmlBusinessException("Tenant '" + tenantId + "' does not exist or is not active.", HttpStatus.BAD_REQUEST);
+            throw new AmlBusinessException("Authenticated tenant does not exist or is not active.", HttpStatus.BAD_REQUEST);
         }
 
         try {
@@ -76,7 +81,7 @@ public class AuthController {
             TenantContextHolder.setTenantId(tenantId);
 
             // 2. Call the service
-            authService.resetPassword(request, httpRequest);
+            authService.resetPassword(request, principal.getName(), tenantId, httpRequest);
             return ResponseEntity.ok(ApiResponse.success("Password updated successfully. You can now log in."));
 
         } finally {

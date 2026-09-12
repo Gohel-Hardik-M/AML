@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.Locale;
+import java.io.IOException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 
@@ -30,7 +31,7 @@ public class BatchIngesionController {
         @PostMapping("/upload")
         @PreAuthorize("hasRole('TENANT_ADMIN')")
         public ResponseEntity<String> uploadExcelBatch(
-                @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file) throws IOException {
 
             if (file.isEmpty() || file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
                 return ResponseEntity.badRequest()
@@ -44,20 +45,8 @@ public class BatchIngesionController {
                 return ResponseEntity.badRequest().body("File size must be 100 MB or less.");
             }
 
-            try {
-
-                Batch savedBatch = batchService.processUpload(file);
-
-                return ResponseEntity.ok(
-                        "Excel file received successfully. Batch ID: "
-                                + savedBatch.getId()
-                );
-
-            } catch (Exception e) {
-
-                return ResponseEntity.badRequest()
-                        .body("Excel rejected: " + e.getMessage());
-            }
+            Batch savedBatch = batchService.processUpload(file);
+            return ResponseEntity.ok("Excel file received successfully. Batch ID: " + savedBatch.getId());
         }
 
         @GetMapping("/batches")

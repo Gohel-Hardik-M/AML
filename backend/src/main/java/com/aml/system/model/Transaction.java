@@ -21,6 +21,7 @@ public class Transaction {
 
 
     @Id
+    @Column(name = "transaction_id", nullable = false)
     private UUID transactionId;
 
 

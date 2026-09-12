@@ -2,23 +2,23 @@
   <router-outlet />
 } @else {
   <div class="d-flex min-vh-100 bg-body-tertiary">
-    <aside class="sidebar sidebar-shell text-white d-none d-lg-flex flex-column p-3">
-      <a routerLink="/dashboard" class="sidebar-brand text-white fw-bold mb-5"><span>AML</span></a>
+    <aside class="text-white bg-dark d-none d-lg-flex flex-column p-3 flex-shrink-0 w-25">
+      <a routerLink="/dashboard" class="d-flex align-items-center text-white text-decoration-none fw-bold mb-5 fs-5"><span>AML</span></a>
       <div class="text-uppercase small text-white-50 fw-semibold mb-2">Workspace</div>
       <nav class="nav nav-pills flex-column gap-1">
-        <a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/dashboard" routerLinkActive="active" class="nav-link text-white">Overview</a>
-        <a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/alerts" routerLinkActive="active" class="nav-link text-white">Alerts</a>
-        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/upload" routerLinkActive="active" class="nav-link text-white">Transaction upload</a>
-        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/officers" routerLinkActive="active" class="nav-link text-white">Compliance officers</a>
-        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/rules" routerLinkActive="active" class="nav-link text-white">Tenant rules</a>
-        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/activity" routerLinkActive="active" class="nav-link text-white">Activity</a>
-        <a *ngIf="auth.currentRole() === 'SYSTEM_ADMIN'" routerLink="/master" routerLinkActive="active" class="nav-link text-white">Master administration</a>
+        <a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/dashboard" routerLinkActive="active" class="nav-link text-white px-3 py-2">Overview</a>
+        <a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/alerts" routerLinkActive="active" class="nav-link text-white px-3 py-2">Alerts</a>
+        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/upload" routerLinkActive="active" class="nav-link text-white px-3 py-2">Transaction upload</a>
+        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/officers" routerLinkActive="active" class="nav-link text-white px-3 py-2">Compliance officers</a>
+        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/rules" routerLinkActive="active" class="nav-link text-white px-3 py-2">Tenant rules</a>
+        <a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/activity" routerLinkActive="active" class="nav-link text-white px-3 py-2">Activity</a>
+        <a *ngIf="auth.currentRole() === 'SYSTEM_ADMIN'" routerLink="/master" routerLinkActive="active" class="nav-link text-white px-3 py-2">Master administration</a>
       </nav>
       <div class="mt-auto border-top border-secondary pt-3"><div class="small text-white-50">Role</div><div class="small fw-semibold">{{ auth.currentRole() || 'AUTHENTICATED USER' }}</div><button class="btn btn-sm btn-outline-light w-100 mt-3" (click)="logout()">Sign out</button></div>
     </aside>
-    <main class="flex-grow-1 min-w-0"><header class="navbar bg-white border-bottom px-3 px-lg-4"><button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav">Menu</button><span class="small text-secondary ms-auto">{{ auth.tenantId() }} / {{ auth.currentRole() }}</span></header><router-outlet /></main>
+    <main class="flex-grow-1 overflow-hidden"><header class="navbar bg-white border-bottom px-3 px-lg-4"><button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav">Menu</button><span class="small text-secondary ms-auto">{{ auth.tenantId() }} / {{ auth.currentRole() }}</span></header><router-outlet /></main>
   </div>
-  <div class="offcanvas offcanvas-start sidebar-shell text-white" tabindex="-1" id="mobileNav"><div class="offcanvas-header"><h5 class="sidebar-mobile-title mb-0"> AML</h5><button class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div><div class="offcanvas-body"><nav class="nav nav-pills flex-column gap-2"><a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/dashboard" class="nav-link text-white">Overview</a><a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/alerts" class="nav-link text-white">Alerts</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/upload" class="nav-link text-white">Transaction upload</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/officers" class="nav-link text-white">Compliance officers</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/rules" class="nav-link text-white">Tenant rules</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/activity" class="nav-link text-white">Activity</a><a *ngIf="auth.currentRole() === 'SYSTEM_ADMIN'" routerLink="/master" class="nav-link text-white">Master administration</a></nav></div></div>
+  <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="mobileNav"><div class="offcanvas-header"><h5 class="fw-bold mb-0">AML</h5><button class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div><div class="offcanvas-body"><nav class="nav nav-pills flex-column gap-2"><a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/dashboard" class="nav-link text-white px-3 py-2">Overview</a><a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/alerts" class="nav-link text-white px-3 py-2">Alerts</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/upload" class="nav-link text-white px-3 py-2">Transaction upload</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/officers" class="nav-link text-white px-3 py-2">Compliance officers</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/rules" class="nav-link text-white px-3 py-2">Tenant rules</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/activity" class="nav-link text-white px-3 py-2">Activity</a><a *ngIf="auth.currentRole() === 'SYSTEM_ADMIN'" routerLink="/master" class="nav-link text-white px-3 py-2">Master administration</a></nav></div></div>
 }
 @if (toast.message()) { <div class="toast-container position-fixed bottom-0 end-0 p-3"><div class="toast show text-bg-{{toast.type()}} border-0"><div class="d-flex"><div class="toast-body">{{toast.message()}}</div><button class="btn-close btn-close-white me-2 m-auto" (click)="toast.message.set('')"></button></div></div></div> }
-@if (loading.active()) { <div class="global-loading" role="status" aria-label="Loading"><div class="global-loading-panel"><span class="spinner-border text-primary" aria-hidden="true"></span><div class="global-loading-bar"></div></div></div> }
+@if (loading.active()) { <div class="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center bg-dark bg-opacity-10 pe-none" role="status" aria-label="Loading"><div class="bg-white rounded shadow p-4"><span class="spinner-border text-primary" aria-hidden="true"></span></div></div> }

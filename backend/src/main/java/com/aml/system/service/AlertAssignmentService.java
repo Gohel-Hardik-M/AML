@@ -32,11 +32,14 @@ public class AlertAssignmentService {
     private final AlertRepository alertRepository;
     private final UserRepository userRepository;
     private final BatchRepository batchRepository;
+    private final AlertPdfService alertPdfService;
 
-    public AlertAssignmentService(AlertRepository alertRepository, UserRepository userRepository, BatchRepository batchRepository) {
+    public AlertAssignmentService(AlertRepository alertRepository, UserRepository userRepository, BatchRepository batchRepository,
+                                  AlertPdfService alertPdfService) {
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
         this.batchRepository = batchRepository;
+        this.alertPdfService = alertPdfService;
     }
 
     /**
@@ -66,6 +69,9 @@ public class AlertAssignmentService {
                             "Alert '" + alertId + "' was not found.", HttpStatus.NOT_FOUND));
             if (alert.isReviewed()) {
                 throw new AmlBusinessException("Alert '" + alertId + "' is already closed.", HttpStatus.CONFLICT);
+            }
+            if (alert.getAssignedOfficerId() != null) {
+                throw new AmlBusinessException("Alert '" + alertId + "' is already assigned to another compliance officer.", HttpStatus.CONFLICT);
             }
             alert.setAssignedOfficerId(officer.getUserId());
             alertRepository.save(alert);
@@ -162,17 +168,66 @@ public class AlertAssignmentService {
     @Transactional
     public Alert closeMyAlert(UUID alertId, String username, String reviewNotes) {
         Alert alert = getMyAlert(alertId, username);
+        validateClosure(alert, alertId, reviewNotes);
+        applyClosure(alert, username, reviewNotes);
+        return saveClosedAlert(alert);
+    }
+
+    @Transactional
+    public PdfResult closeMyAlertAndGeneratePdf(UUID alertId, String username, String reviewNotes) throws java.io.IOException {
+        Alert alert = getMyAlert(alertId, username);
+        validateClosure(alert, alertId, reviewNotes);
+        Alert closurePreview = closurePreview(alert, username, reviewNotes);
+
+        // Build the document before the managed entity is flushed. If generation fails,
+        // the surrounding transaction exits without saving the closure.
+        byte[] pdf = alertPdfService.generate(closurePreview);
+        applyClosure(alert, username, reviewNotes);
+        return new PdfResult(saveClosedAlert(alert), pdf);
+    }
+
+    private Alert closurePreview(Alert alert, String username, String reviewNotes) {
+        return Alert.builder()
+                .alertId(alert.getAlertId())
+                .transactionId(alert.getTransactionId())
+                .customerId(alert.getCustomerId())
+                .ruleCode(alert.getRuleCode())
+                .ruleName(alert.getRuleName())
+                .severity(alert.getSeverity())
+                .triggeredAmount(alert.getTriggeredAmount())
+                .narrative(alert.getNarrative())
+                .detectionMetadataJson(alert.getDetectionMetadataJson())
+                .reviewed(true)
+                .assignedCaseId(alert.getAssignedCaseId())
+                .batchId(alert.getBatchId())
+                .tenantId(alert.getTenantId())
+                .assignedOfficerId(alert.getAssignedOfficerId())
+                .reviewedAt(LocalDateTime.now())
+                .reviewedBy(username)
+                .reviewDecision("CLOSED")
+                .reviewNotes(reviewNotes.trim())
+                .createdAt(alert.getCreatedAt())
+                .build();
+    }
+
+    private void validateClosure(Alert alert, UUID alertId, String reviewNotes) {
         if (alert.isReviewed()) {
             throw new AmlBusinessException("Alert '" + alertId + "' is already closed.", HttpStatus.CONFLICT);
         }
         if (reviewNotes == null || reviewNotes.isBlank()) {
             throw new AmlBusinessException("A review note is required to close an alert.", HttpStatus.BAD_REQUEST);
         }
+    }
+
+    private void applyClosure(Alert alert, String username, String reviewNotes) {
         alert.setReviewed(true);
         alert.setReviewedAt(LocalDateTime.now());
         alert.setReviewedBy(username);
         alert.setReviewDecision("CLOSED");
         alert.setReviewNotes(reviewNotes.trim());
+    }
+
+    private Alert saveClosedAlert(Alert alert) {
         Alert saved = alertRepository.save(alert);
         if (saved.getBatchId() != null && alertRepository.countByBatchIdAndReviewedFalse(saved.getBatchId()) == 0) {
             batchRepository.findById(saved.getBatchId()).ifPresent(batch -> {
@@ -182,4 +237,6 @@ public class AlertAssignmentService {
         }
         return saved;
     }
+
+    public record PdfResult(Alert alert, byte[] content) { }
 }

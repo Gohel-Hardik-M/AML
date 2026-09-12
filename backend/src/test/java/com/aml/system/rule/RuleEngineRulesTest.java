@@ -88,6 +88,6 @@ class RuleEngineRulesTest {
                                     TransactionType type, LocalDateTime timestamp) {
         return Transaction.builder().transactionId(UUID.randomUUID()).customerID(customer)
                 .sourceAccountId(source).destinationAccountId(destination).amount(amount)
-                .currency("USD").transactionType(type).timestamp(timestamp).build();
+                .currency("INR").transactionType(type).timestamp(timestamp).build();
     }
 }

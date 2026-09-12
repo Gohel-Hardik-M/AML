@@ -67,16 +67,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtUtil.extractAllClaims(jwt);
                 String username = claims.getSubject();
                 String tenantId = claims.get("tenantId", String.class);
-                String role = claims.get("role", String.class);
+
+                // Route user lookups to the database identified by the verified JWT.
+                if (tenantId != null) {
+                    TenantContextHolder.setTenantId(tenantId);
+                }
+
+                String role = currentRole(tenantId, username);
 
                 // Ensure Spring Security recognizes this as a Role
                 if (role != null && !role.startsWith("ROLE_")) {
                     role = "ROLE_" + role;
-                }
-
-                // 3. Set the database routing context for this specific request
-                if (tenantId != null) {
-                    TenantContextHolder.setTenantId(tenantId);
                 }
 
                 // 4. Check if user is still active and not locked (audit finding #24)
@@ -157,5 +158,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("Failed to check temp password for '{}': {}", username, e.getMessage());
             return false;
         }
+    }
+
+    private String currentRole(String tenantId, String username) {
+        if ("MASTER".equals(tenantId)) {
+            return "SYSTEM_ADMIN";
+        }
+        return userRepository.findByTenantIdAndUsername(tenantId, username)
+                .map(user -> user.getRole().name())
+                .orElse(null);
     }
 }

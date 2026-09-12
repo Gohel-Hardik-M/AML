@@ -6,7 +6,7 @@ import { RuleConfig } from '../../models';
 import { ToastService } from '../../toast.service';
 import { isJsonObject, isRuleCode } from '../../validation';
 
-@Component({ selector: 'app-rules', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './rules.component.html', styleUrl: './rules.component.css' })
+@Component({ selector: 'app-rules', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './rules.component.html' })
 export class RulesComponent {
   rules: RuleConfig[] = [];
   selectedRule?: RuleConfig;

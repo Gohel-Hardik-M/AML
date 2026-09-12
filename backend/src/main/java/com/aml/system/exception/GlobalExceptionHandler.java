@@ -119,20 +119,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied.", request.getRequestURI()));
     }
 
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMissingTenantDataSource(IllegalStateException ex, HttpServletRequest request) {
-        String tenantId = TenantContextHolder.getTenantId();
-        if (tenantId == null || tenantId.isBlank()) {
-            tenantId = request.getParameter("tenantId");
-        }
-        if (tenantId == null || tenantId.isBlank()) {
-            tenantId = "unknown";
-        }
-        String message = "Tenant '" + tenantId + "' does not exist or is not active.";
-        log.warn("Tenant routing failed on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.badRequest().body(ApiResponse.error(message, request.getRequestURI()));
-    }
-
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataAccessException(
             DataAccessException ex, HttpServletRequest request) {
@@ -161,8 +147,14 @@ public class GlobalExceptionHandler {
         String lower = msg.toLowerCase();
 
         // 1. Batch / CSV Upload Duplication Rules
-        if (lower.contains("checksum") || lower.contains("aml_batches")) {
-            return "Conflict: This exact file (identical checksum) already exists in the database.";
+        if (lower.contains("checksum") || lower.contains("uk_batches_tenant_checksum")) {
+            return "Conflict: This exact file has already been uploaded.";
+        }
+        if (lower.contains("batch_date") || lower.contains("uk_batches_tenant_date")) {
+            return "Conflict: A batch for this tenant and date already exists.";
+        }
+        if (lower.contains("transaction_id") || lower.contains("transactions_pkey")) {
+            return "Conflict: One or more transaction IDs already exist.";
         }
 
         // 2. Tenant / Admin User Duplication Rules

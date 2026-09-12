@@ -3,6 +3,10 @@ package com.aml.system.service;
 import com.aml.system.ExcelTransactionReader.ExcelTransactionReader;
 import com.aml.system.model.Batch;
 import com.aml.system.model.BatchStatus;
+import com.aml.system.exception.DuplicateBatchException;
+import com.aml.system.exception.DuplicateTransactionException;
+import com.aml.system.exception.NoActiveRulesException;
+import com.aml.system.exception.TenantRoutingException;
 import com.aml.system.dto.admin.BatchSummaryDto;
 import com.aml.system.model.Transaction;
 import com.aml.system.multitenancy.TenantContextHolder;
@@ -19,8 +23,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,17 +63,47 @@ public class BatchService {
             this.tenantRuleConfigRepository = tenantRuleConfigRepository;
         }
 
-        @Transactional
+        @Transactional(rollbackOn = Exception.class)
         public Batch processUpload(MultipartFile file) throws IOException {
 
                         String tenantId = TenantContextHolder.getTenantId();
                         if (tenantId == null || tenantId.isBlank()) {
-                                throw new IllegalStateException("Tenant context is missing. Login as a bank administrator before uploading.");
+                                throw new TenantRoutingException("Tenant context is missing. Login as a bank administrator before uploading.");
                         }
 
             List<Transaction> transactions = excelTransactionReader.read(file);
+                        if (transactions.isEmpty()) {
+                                throw new IllegalArgumentException("The Excel file contains no transaction rows.");
+                        }
+                        Set<UUID> transactionIds = new HashSet<>();
+                        for (Transaction transaction : transactions) {
+                                if (!transactionIds.add(transaction.getTransactionId())) {
+                                               throw new DuplicateTransactionException("Duplicate transaction ID '" + transaction.getTransactionId()
+                                                        + "' found in the uploaded file.");
+                                }
+                                if (transactionRepository.existsById(transaction.getTransactionId())) {
+                                               throw new DuplicateTransactionException("Transaction ID '" + transaction.getTransactionId()
+                                                        + "' already exists. The transaction was not uploaded again.");
+                                }
+                        }
+
+                        LocalDate batchDate = transactions.stream()
+                                        .map(Transaction::getTimestamp)
+                                        .map(LocalDateTime::toLocalDate)
+                                        .min(LocalDate::compareTo)
+                                        .orElseThrow(() -> new IllegalArgumentException("The upload has no valid transaction date."));
+                        String fileChecksum = sha256(file.getBytes());
+                        if (batchRepository.existsByTenantIdAndBatchDate(tenantId, batchDate)) {
+                                throw new DuplicateBatchException("A batch for tenant '" + tenantId + "' already exists for " + batchDate + ".");
+                        }
+                        if (batchRepository.existsByTenantIdAndFileChecksum(tenantId, fileChecksum)) {
+                                       throw new DuplicateBatchException("This exact file has already been uploaded.");
+                        }
 
             Batch batch = Batch.builder()
+                                        .tenantId(tenantId)
+                                        .batchDate(batchDate)
+                                        .fileChecksum(fileChecksum)
                     .fileName(file.getOriginalFilename())
                     .status(BatchStatus.PENDING)
                     .uploadedAt(LocalDateTime.now())
@@ -94,7 +133,7 @@ public class BatchService {
                     .collect(Collectors.toMap(TenantRuleConfig::getRuleCode, Function.identity(), (first, second) -> first));
 
             if (activeConfigs.isEmpty()) {
-                throw new IllegalStateException(
+                        throw new NoActiveRulesException(
                         "No enabled AML rules are configured for tenant '" + tenantId
                                 + "'. Allocate and enable rules before uploading transactions.");
             }
@@ -116,6 +155,19 @@ public class BatchService {
             log.info("Processed batch '{}' with {} transactions and {} alerts using {} active rules.",
                     savedBatch.getId(), savedTransactions.size(), alertCount, activeConfigs.size());
             return savedBatch;
+        }
+
+        private String sha256(byte[] content) {
+                try {
+                        byte[] digest = MessageDigest.getInstance("SHA-256").digest(content);
+                        StringBuilder result = new StringBuilder(64);
+                        for (byte value : digest) {
+                                result.append(String.format("%02x", value));
+                        }
+                        return result.toString();
+                } catch (NoSuchAlgorithmException exception) {
+                        throw new IllegalStateException("SHA-256 is not available.", exception);
+                }
         }
 
         private int activeWindowMinutes(String tenantId) {

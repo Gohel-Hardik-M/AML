@@ -25,12 +25,10 @@ import com.aml.system.service.AlertPdfService;
 public class AlertAssignmentController {
 
     private final AlertAssignmentService alertAssignmentService;
-    private final AlertPdfService alertPdfService;
     private final AuditLogService auditLogService;
 
-    public AlertAssignmentController(AlertAssignmentService alertAssignmentService, AlertPdfService alertPdfService, AuditLogService auditLogService) {
+    public AlertAssignmentController(AlertAssignmentService alertAssignmentService, AuditLogService auditLogService) {
         this.alertAssignmentService = alertAssignmentService;
-        this.alertPdfService = alertPdfService;
         this.auditLogService = auditLogService;
     }
 
@@ -119,11 +117,12 @@ public class AlertAssignmentController {
     @PreAuthorize("hasRole('COMPLIANCE_OFFICER')")
     public ResponseEntity<byte[]> generateAlertPdf(@PathVariable UUID alertId, Principal principal, HttpServletRequest request,
                                                    @Valid @RequestBody AlertReviewRequestDto reviewRequest) throws java.io.IOException {
-        Alert alert = alertAssignmentService.closeMyAlert(alertId, principal.getName(), reviewRequest.getReviewNotes());
-        auditLogService.logAction(principal.getName(), "CASE_FILED", alertId.toString(), "Alert closed and PDF generated", request);
+        AlertAssignmentService.PdfResult result = alertAssignmentService.closeMyAlertAndGeneratePdf(
+            alertId, principal.getName(), reviewRequest.getReviewNotes());
+        auditLogService.logAction(principal.getName(), "ALERT_CLOSED_PDF_GENERATED", alertId.toString(), "Alert closed and PDF generated", request);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=aml-alert-" + alertId + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
-                .body(alertPdfService.generate(alert));
+            .body(result.content());
     }
 }

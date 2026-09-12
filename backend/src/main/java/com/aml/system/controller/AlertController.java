@@ -11,9 +11,11 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/v1/alerts")
+@PreAuthorize("hasRole('TENANT_ADMIN')")
 public class AlertController {
 
 

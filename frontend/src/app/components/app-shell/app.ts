@@ -8,7 +8,6 @@ import { LoadingService } from '../../loading.service';
 @Component({
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   selector: 'app-root',
-  styleUrl: './app.css',
   templateUrl: './app.html',
 })
 export class App {

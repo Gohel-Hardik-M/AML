@@ -6,7 +6,7 @@ import { AuthService } from '../../auth.service';
 import { ToastService } from '../../toast.service';
 import { isTenantId } from '../../validation';
 
-@Component({ selector: 'app-login', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './login.component.html', styleUrl: './login.component.css' })
+@Component({ selector: 'app-login', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './login.component.html' })
 export class LoginComponent {
   username = ''; password = ''; tenantId = ''; master = false; loading = false; showPassword = false;
   private auth = inject(AuthService); private router = inject(Router); private toast = inject(ToastService);

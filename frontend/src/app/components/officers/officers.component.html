@@ -23,7 +23,7 @@
         </tbody>
       </table>
     </div>
-    <div class="pagination-bar" *ngIf="officers.length > pageSize">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 p-3 border-top" *ngIf="officers.length > pageSize">
       <span class="small text-secondary">Showing {{officerPage * pageSize + 1}}-{{Math.min((officerPage + 1) * pageSize, officers.length)}} of {{officers.length}}</span>
       <div class="btn-group"><button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="officerPage === 0" (click)="setOfficerPage(officerPage - 1)">Previous</button><span class="btn btn-sm btn-outline-secondary disabled">Page {{officerPage + 1}} of {{officerPageCount}}</span><button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="officerPage + 1 >= officerPageCount" (click)="setOfficerPage(officerPage + 1)">Next</button></div>
     </div>
@@ -41,12 +41,12 @@
               <td><span class="badge text-bg-light">{{alert.ruleCode || '—'}}</span><div class="small text-secondary">{{alert.severity || '—'}}</div></td>
               <td><span class="badge rounded-pill" [ngClass]="alert.reviewed ? 'text-bg-success' : 'text-bg-warning'">{{alert.reviewed ? 'Closed' : 'Open'}}</span><div class="small text-secondary">{{alert.reviewDecision || 'Pending review'}}</div></td>
               <td class="text-break">{{alert.reviewedBy || '—'}}<div class="small text-secondary">{{alert.reviewedAt ? (alert.reviewedAt | date:'medium') : '—'}}</div></td>
-              <td class="review-note-cell">{{alert.reviewNotes || 'No review note yet.'}}</td>
+              <td class="text-break">{{alert.reviewNotes || 'No review note yet.'}}</td>
               <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="offcanvas" data-bs-target="#officerCaseDrawer" aria-controls="officerCaseDrawer" (click)="viewAlert(alert)">View case</button></td>
             </tr>
           </tbody>
         </table>
-        <div class="pagination-bar" *ngIf="assignedAlerts.length > pageSize">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 p-3 border-top" *ngIf="assignedAlerts.length > pageSize">
           <span class="small text-secondary">Showing {{alertPage * pageSize + 1}}-{{Math.min((alertPage + 1) * pageSize, assignedAlerts.length)}} of {{assignedAlerts.length}}</span>
           <div class="btn-group"><button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="alertPage === 0" (click)="setAlertPage(alertPage - 1)">Previous</button><span class="btn btn-sm btn-outline-secondary disabled">Page {{alertPage + 1}} of {{alertPageCount}}</span><button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="alertPage + 1 >= alertPageCount" (click)="setAlertPage(alertPage + 1)">Next</button></div>
         </div>
@@ -59,7 +59,7 @@
 <div id="officerCaseDrawer" class="offcanvas offcanvas-end" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="officerCaseDrawerTitle" data-bs-scroll="true" (hidden.bs.offcanvas)="closeAlertDrawer()">
   <div class="offcanvas-header border-bottom"><div><p class="text-primary text-uppercase small fw-bold mb-1">Officer case record</p><h2 id="officerCaseDrawerTitle" class="h5 fw-bold mb-0">{{selectedAlert?.alertId || 'Case details'}}</h2><p class="small text-secondary mb-0">{{assignedOfficer?.fullName}} · {{selectedAlert?.reviewed ? 'Closed case' : 'Open case'}}</p></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close case details"></button></div>
   <div class="offcanvas-body" *ngIf="selectedAlert as alert">
-    <div class="drawer-detail-grid small"><div><strong>Rule</strong><div class="text-break">{{alert.ruleCode || '—'}} {{alert.ruleName ? '· ' + alert.ruleName : ''}}</div></div><div><strong>Transaction</strong><div class="text-break">{{alert.transactionId || '—'}}</div></div><div><strong>Customer</strong><div class="text-break">{{alert.customerId || '—'}}</div></div><div><strong>Review decision</strong><div>{{alert.reviewDecision || 'Pending review'}}</div></div><div><strong>Reviewed by</strong><div class="text-break">{{alert.reviewedBy || '—'}}</div></div><div><strong>Reviewed at</strong><div>{{alert.reviewedAt ? (alert.reviewedAt | date:'medium') : '—'}}</div></div></div>
+    <div class="row row-cols-1 row-cols-sm-2 g-3 small"><div class="col"><strong>Rule</strong><div class="text-break">{{alert.ruleCode || '—'}} {{alert.ruleName ? '· ' + alert.ruleName : ''}}</div></div><div class="col"><strong>Transaction</strong><div class="text-break">{{alert.transactionId || '—'}}</div></div><div class="col"><strong>Customer</strong><div class="text-break">{{alert.customerId || '—'}}</div></div><div class="col"><strong>Review decision</strong><div>{{alert.reviewDecision || 'Pending review'}}</div></div><div class="col"><strong>Reviewed by</strong><div class="text-break">{{alert.reviewedBy || '—'}}</div></div><div class="col"><strong>Reviewed at</strong><div>{{alert.reviewedAt ? (alert.reviewedAt | date:'medium') : '—'}}</div></div></div>
     <div class="mt-4"><strong>Compliance officer note</strong><div class="border rounded bg-light p-3 text-break mt-2">{{alert.reviewNotes || 'No review note yet.'}}</div></div>
     <div class="mt-4"><strong>Narrative</strong><div class="text-break mt-2">{{alert.narrative || '—'}}</div></div>
     <div class="mt-4"><strong>Detection metadata</strong><pre class="small bg-light border rounded p-3 mb-0 text-wrap mt-2">{{alert.detectionMetadataJson || '—'}}</pre></div>

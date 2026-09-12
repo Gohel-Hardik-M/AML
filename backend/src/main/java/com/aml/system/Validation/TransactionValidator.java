@@ -15,6 +15,9 @@ public class TransactionValidator {
 
 
         public  void  validate(Transaction transaction, int rowNumber){
+            if (transaction.getTransactionId() == null) {
+                throw new TransactionException("Invalid transaction at row " + rowNumber + " : Transaction ID must be a valid UUID.");
+            }
             if(transaction.getSourceAccountId() == null || transaction.getSourceAccountId().isBlank()){
                 throw  new TransactionException("Invalid Transaction at Row :"+rowNumber+" -> Source Account ID is required.");
 
@@ -40,8 +43,8 @@ public class TransactionValidator {
             if(transaction.getCurrency() == null || transaction.getCurrency().isBlank()){
                 throw new TransactionException("Invalid Transaction at row :"+ rowNumber+" : Currency is required. ");
             }
-            if (!transaction.getCurrency().matches("[A-Za-z]{3}")) {
-                throw new TransactionException("Invalid transaction at row " + rowNumber + " : Currency must be a 3-letter code.");
+            if (!"INR".equalsIgnoreCase(transaction.getCurrency())) {
+                throw new TransactionException("Invalid transaction at row " + rowNumber + " : Only INR currency is supported.");
             }
             if (transaction.getCountryCode() != null && !transaction.getCountryCode().matches("[A-Za-z]{2}")) {
                 throw new TransactionException("Invalid transaction at row " + rowNumber + " : Country code must contain 2 letters.");
@@ -52,6 +55,10 @@ public class TransactionValidator {
 
             if(transaction.getTransactionType() == null){
                 throw new TransactionException("Invalid Transaction at row "+ rowNumber+" : Transaction Type is required.");
+            }
+            if (transaction.getTransactionType() == com.aml.system.model.TransactionType.CRYPTO_PURCHASE
+                    || transaction.getTransactionType() == com.aml.system.model.TransactionType.CRYPTO_DISBURSEMENT) {
+                throw new TransactionException("Invalid transaction at row " + rowNumber + " : Cryptocurrency transaction types are not supported.");
             }
 
             if(transaction.getTimestamp() == null){

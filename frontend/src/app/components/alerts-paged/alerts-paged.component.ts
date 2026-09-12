@@ -11,7 +11,6 @@ import { ToastService } from '../../toast.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './alerts-paged.component.html',
-  styleUrl: './alerts-paged.component.css'
 })
 export class AlertsPagedComponent {
   alerts: Alert[] = [];

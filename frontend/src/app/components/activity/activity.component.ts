@@ -5,7 +5,7 @@ import { ApiService } from '../../api.service';
 import { Activity, PageResponse } from '../../models';
 import { ToastService } from '../../toast.service';
 
-@Component({ selector: 'app-activity', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './activity.component.html', styleUrl: './activity.component.css' })
+@Component({ selector: 'app-activity', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './activity.component.html' })
 export class ActivityComponent {
   page: PageResponse<Activity> = { content: [], totalElements: 0, totalPages: 0, number: 0, size: 15 };
   query = '';

@@ -6,7 +6,7 @@ import { Alert, Officer } from '../../models';
 import { ToastService } from '../../toast.service';
 import { isEmail, isUsername } from '../../validation';
 
-@Component({ selector: 'app-officers', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './officers.component.html', styleUrl: './officers.component.css' })
+@Component({ selector: 'app-officers', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './officers.component.html' })
 export class OfficersComponent {
   officers: Officer[] = []; assignedAlerts: Alert[] = []; assignedOfficer?: Officer; selectedAlert?: Alert; form = { fullName: '', username: '', email: '' };
   officerPage = 0; alertPage = 0; readonly pageSize = 5;

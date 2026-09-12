@@ -148,10 +148,7 @@ public class AuthService {
      * TenantContextHolder is set by the controller/filter — NOT duplicated here (audit finding #30).
      */
     @Transactional
-    public void resetPassword(PasswordResetDto request, HttpServletRequest httpRequest) {
-        String tenantId = request.getTenantId();
-        String username = request.getUsername();
-
+    public void resetPassword(PasswordResetDto request, String username, String tenantId, HttpServletRequest httpRequest) {
         UserEntity user = userRepository.findByTenantIdAndUsername(tenantId, username)
                 .orElseThrow(() -> new AmlBusinessException("User not found"));
 
