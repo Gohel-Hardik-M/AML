@@ -53,8 +53,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 4. Configure API Endpoint Access Rules
-                // Only login endpoints are public. Reset-password now requires JWT (audit finding #17)
+                // Preflight OPTIONS and public login endpoints are permitted
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/master/login").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -72,21 +73,12 @@ public class SecurityConfig {
     }
 
     /**
-     * CORS configuration to allow frontend applications from different domains.
-     * In production, restrict allowedOrigins to your actual frontend domain.
+     * CORS configuration to allow frontend applications from any domain / port.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = new java.util.ArrayList<>(Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList());
-        origins.add("http://localhost:*");
-        origins.add("http://127.0.0.1:*");
-        origins.add("https://localhost:*");
-        origins.add("https://127.0.0.1:*");
-        configuration.setAllowedOriginPatterns(origins);
+        configuration.addAllowedOriginPattern("*");
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
