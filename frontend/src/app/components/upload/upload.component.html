@@ -25,12 +25,20 @@
             <div class="small text-secondary mt-2 text-start" *ngIf="selected">
               Selected: {{ selected.name }} ({{ selected.size / 1048576 | number: '1.1-1' }} MB)
             </div>
+
+            <div class="alert alert-success mt-4 text-start" *ngIf="uploadSuccessMessage">
+              <div class="fw-bold mb-1">Upload &amp; Screening Complete!</div>
+              <p class="mb-2">{{ uploadSuccessMessage }}</p>
+              <button type="button" class="btn btn-sm btn-success" (click)="goToAlerts()">View Generated Alerts</button>
+            </div>
+
             <button
               class="btn btn-primary mt-3"
               [disabled]="!selected || !!fileError || uploading"
-              (click)="upload()"
+              (click)="upload(fileInput)"
             >
-              {{ uploading ? 'Uploading...' : 'Upload and screen' }}
+              <span class="spinner-border spinner-border-sm me-1" *ngIf="uploading" role="status" aria-hidden="true"></span>
+              {{ uploading ? 'Uploading and screening...' : 'Upload and screen' }}
             </button>
           </div>
         </div>
