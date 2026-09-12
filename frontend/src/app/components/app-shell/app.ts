@@ -16,5 +16,10 @@ export class App {
   loading = inject(LoadingService);
   private router = inject(Router);
   logout() { this.auth.logout(); }
-  isLogin() { return this.router.url === '/login'; }
+  isAuthLayout() {
+    return this.router.url.startsWith('/login') ||
+           this.router.url.startsWith('/reset-password') ||
+           this.auth.mustChangePassword();
+  }
+  isLogin() { return this.isAuthLayout(); }
 }

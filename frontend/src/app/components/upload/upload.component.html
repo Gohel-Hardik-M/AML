@@ -32,6 +32,11 @@
               <button type="button" class="btn btn-sm btn-success" (click)="goToAlerts()">View Generated Alerts</button>
             </div>
 
+            <div class="alert alert-danger mt-4 text-start" *ngIf="inlineErrorMessage">
+              <div class="fw-bold mb-1">Upload Error</div>
+              <p class="mb-0">{{ inlineErrorMessage }}</p>
+            </div>
+
             <button
               class="btn btn-primary mt-3"
               [disabled]="!selected || !!fileError || uploading"
@@ -49,11 +54,66 @@
         <div class="card-body p-4">
           <h2 class="h6 fw-bold">Before you upload</h2>
           <ul class="list-unstyled small text-secondary mt-3">
-            <li class="mb-3">Use a consistent transaction export format.</li>
-            <li class="mb-3">Keep customer and transaction identifiers intact.</li>
-            <li>New alerts will appear in the queue after processing.</li>
+            <li class="mb-3">Use a consistent transaction export format (XLS or XLSX).</li>
+            <li class="mb-3">Each transaction must have a unique UUID identifier.</li>
+            <li class="mb-3">Batches are deduplicated per calendar date and file content.</li>
+            <li>New alerts will appear in the <strong>Alerts</strong> queue after processing.</li>
           </ul>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="h5 fw-bold mb-1">Ingestion batches</h2>
+          <p class="text-secondary small mb-0">Record of uploaded transaction files and screening status.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="loadBatches()" [disabled]="loadingBatches">
+          <span class="spinner-border spinner-border-sm me-1" *ngIf="loadingBatches" role="status" aria-hidden="true"></span>
+          Refresh
+        </button>
+      </div>
+
+      <div class="table-responsive" *ngIf="batches.length">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Batch ID</th>
+              <th>File Name</th>
+              <th>Status</th>
+              <th>Uploaded At</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of batches">
+              <td>
+                <span class="font-monospace small fw-semibold">{{ b.batchId }}</span>
+              </td>
+              <td>
+                <div class="fw-medium">{{ b.fileName }}</div>
+              </td>
+              <td>
+                <span class="badge rounded-pill" [ngClass]="{
+                  'text-bg-success': b.status === 'PROCESSED',
+                  'text-bg-warning': b.status === 'PENDING',
+                  'text-bg-info': b.status === 'REVIEWED'
+                }">{{ b.status }}</span>
+              </td>
+              <td>{{ b.uploadedAt ? (b.uploadedAt | date:'medium') : '—' }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="goToAlerts()">View Alerts</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="text-secondary text-center py-4 small" *ngIf="!loadingBatches && !batches.length">
+        No transaction batches uploaded yet.
       </div>
     </div>
   </div>

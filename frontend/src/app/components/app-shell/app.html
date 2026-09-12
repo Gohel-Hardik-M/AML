@@ -1,4 +1,4 @@
-@if (isLogin()) {
+@if (isAuthLayout()) {
   <router-outlet />
 } @else {
   <div class="d-flex min-vh-100 bg-body-tertiary">
@@ -21,4 +21,4 @@
   <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="mobileNav"><div class="offcanvas-header"><h5 class="fw-bold mb-0">AML</h5><button class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div><div class="offcanvas-body"><nav class="nav nav-pills flex-column gap-2"><a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/dashboard" class="nav-link text-white px-3 py-2">Overview</a><a *ngIf="auth.currentRole() !== 'SYSTEM_ADMIN'" routerLink="/alerts" class="nav-link text-white px-3 py-2">Alerts</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/upload" class="nav-link text-white px-3 py-2">Transaction upload</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/officers" class="nav-link text-white px-3 py-2">Compliance officers</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/rules" class="nav-link text-white px-3 py-2">Tenant rules</a><a *ngIf="auth.currentRole() === 'TENANT_ADMIN'" routerLink="/activity" class="nav-link text-white px-3 py-2">Activity</a><a *ngIf="auth.currentRole() === 'SYSTEM_ADMIN'" routerLink="/master" class="nav-link text-white px-3 py-2">Master administration</a></nav></div></div>
 }
 @if (toast.message()) { <div class="toast-container position-fixed bottom-0 end-0 p-3"><div class="toast show text-bg-{{toast.type()}} border-0"><div class="d-flex"><div class="toast-body">{{toast.message()}}</div><button class="btn-close btn-close-white me-2 m-auto" (click)="toast.message.set('')"></button></div></div></div> }
-@if (loading.active()) { <div class="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center bg-dark bg-opacity-10 pe-none" role="status" aria-label="Loading"><div class="bg-white rounded shadow p-4"><span class="spinner-border text-primary" aria-hidden="true"></span></div></div> }
+@if (loading.active()) { <div class="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center bg-dark bg-opacity-25" style="z-index: 1060;" role="status" aria-label="Loading"><div class="bg-white rounded shadow p-4"><span class="spinner-border text-primary" aria-hidden="true"></span></div></div> }

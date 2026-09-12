@@ -17,7 +17,7 @@
             <td class="ps-4"><div class="fw-semibold">{{officer.fullName}}</div><div class="text-secondary small">{{officer.username}}</div></td>
             <td>{{officer.email}}</td>
             <td><span class="badge rounded-pill" [ngClass]="officer.isActive === false ? 'text-bg-secondary' : 'text-bg-success'">{{officer.isActive === false ? 'Inactive' : 'Active'}}</span></td>
-            <td class="pe-4 text-end"><button type="button" class="btn btn-sm btn-outline-primary me-2" (click)="viewAlerts(officer)">View alerts</button><button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggle(officer)">{{officer.isActive === false ? 'Reactivate' : 'Deactivate'}}</button></td>
+            <td class="pe-4 text-end"><button type="button" class="btn btn-sm btn-outline-primary me-2" (click)="viewAlerts(officer)">View alerts</button><button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="updatingOfficerId === officer.userId" (click)="toggle(officer)"><span class="spinner-border spinner-border-sm me-1" *ngIf="updatingOfficerId === officer.userId" aria-hidden="true"></span>{{officer.isActive === false ? 'Reactivate' : 'Deactivate'}}</button></td>
           </tr>
           <tr *ngIf="!officers.length"><td colspan="4" class="text-center py-5 text-secondary">No officers found.</td></tr>
         </tbody>
@@ -70,7 +70,13 @@
   <div class="modal-dialog"><div class="modal-content border-0"><div class="modal-header"><h2 id="officerModalTitle" class="modal-title h5">Add compliance officer</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
     <form (ngSubmit)="create(formRef)" #formRef="ngForm" novalidate>
       <div class="modal-body"><div class="mb-3"><label class="form-label" for="officerFullName">Full name</label><input id="officerFullName" class="form-control" [class.is-invalid]="fullNameField.invalid && fullNameField.touched" name="fullName" [(ngModel)]="form.fullName" #fullNameField="ngModel" required maxlength="128"><div class="invalid-feedback">Full name is required and must be 128 characters or fewer.</div></div><div class="mb-3"><label class="form-label" for="officerUsername">Username</label><input id="officerUsername" class="form-control" [class.is-invalid]="usernameField.invalid && usernameField.touched" name="username" [(ngModel)]="form.username" #usernameField="ngModel" required maxlength="64" pattern="^[A-Za-z0-9._\-]+$"><div class="invalid-feedback">Use up to 64 letters, numbers, dots, underscores, or hyphens.</div></div><div><label class="form-label" for="officerEmail">Email</label><input id="officerEmail" class="form-control" [class.is-invalid]="emailField.invalid && emailField.touched" type="email" name="email" [(ngModel)]="form.email" #emailField="ngModel" required maxlength="254"><div class="invalid-feedback">Enter a valid email address up to 254 characters.</div></div></div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary" [disabled]="formRef.invalid">Create officer</button></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" [disabled]="submitting">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="formRef.invalid || submitting">
+          <span class="spinner-border spinner-border-sm me-2" *ngIf="submitting" aria-hidden="true"></span>
+          {{ submitting ? 'Creating officer...' : 'Create officer' }}
+        </button>
+      </div>
     </form>
   </div></div>
 </div>

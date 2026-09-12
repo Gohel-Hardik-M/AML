@@ -38,6 +38,9 @@ public class Batch {
 
 
 
+        @Column(name = "uploaded_by_id")
+        private UUID uploadedById;
+
         @Column
         private String fileName;
         @Enumerated(EnumType.STRING)

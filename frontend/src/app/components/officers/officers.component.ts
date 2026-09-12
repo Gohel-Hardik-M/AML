@@ -9,7 +9,7 @@ import { isEmail, isUsername } from '../../validation';
 @Component({ selector: 'app-officers', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './officers.component.html' })
 export class OfficersComponent {
   officers: Officer[] = []; assignedAlerts: Alert[] = []; assignedOfficer?: Officer; selectedAlert?: Alert; form = { fullName: '', username: '', email: '' };
-  officerPage = 0; alertPage = 0; readonly pageSize = 5;
+  officerPage = 0; alertPage = 0; readonly pageSize = 5; submitting = false; updatingOfficerId: string | null = null;
   readonly Math = Math;
   private api = inject(ApiService); private toast = inject(ToastService); private changeDetector = inject(ChangeDetectorRef);
   constructor() { this.load(); }
@@ -23,6 +23,58 @@ export class OfficersComponent {
   closeAlertDrawer() { this.selectedAlert = undefined; }
   setOfficerPage(page: number) { if (page >= 0 && page < this.officerPageCount) this.officerPage = page; }
   setAlertPage(page: number) { if (page >= 0 && page < this.alertPageCount) this.alertPage = page; }
-  create(formRef: any) { const fullName = this.form.fullName.trim(); const username = this.form.username.trim(); const email = this.form.email.trim(); if (formRef.invalid || fullName.length < 2 || fullName.length > 128 || !isUsername(username) || !isEmail(email)) return; const payload = { fullName, username, email }; this.api.createOfficer(payload).subscribe({ next: () => { this.toast.show('Officer created.'); this.form = { fullName: '', username: '', email: '' }; formRef.resetForm(); this.load(); }, error: error => this.toast.show(error.error?.message || 'Could not create officer.', 'danger') }); }
-  toggle(officer: Officer) { if (!officer.userId) return; const request = officer.isActive === false ? this.api.reactivateOfficer(officer.userId) : this.api.deactivateOfficer(officer.userId); request.subscribe({ next: () => { this.toast.show('Officer status updated.'); this.load(); }, error: error => this.toast.show(error.error?.message || 'Could not update officer.', 'danger') }); }
+  create(formRef: any) {
+    if (this.submitting) return;
+    const fullName = this.form.fullName.trim();
+    const username = this.form.username.trim();
+    const email = this.form.email.trim();
+    if (formRef.invalid || fullName.length < 2 || fullName.length > 128 || !isUsername(username) || !isEmail(email)) return;
+    this.submitting = true;
+    const payload = { fullName, username, email };
+    this.api.createOfficer(payload).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.toast.show('Officer created.');
+        this.form = { fullName: '', username: '', email: '' };
+        formRef.resetForm();
+        this.load();
+        this.closeOfficerModal();
+      },
+      error: error => {
+        this.submitting = false;
+        let msg = error.error?.message || 'Could not create officer.';
+        if (typeof error?.error === 'string') {
+          try { msg = JSON.parse(error.error).message || error.error; } catch {}
+        }
+        this.toast.show(msg, 'danger');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+  private closeOfficerModal() {
+    try {
+      const modalEl = document.getElementById('officerModal');
+      if (modalEl && (window as any).bootstrap?.Modal) {
+        const modal = (window as any).bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    } catch {}
+  }
+  toggle(officer: Officer) {
+    if (!officer.userId || this.updatingOfficerId) return;
+    this.updatingOfficerId = officer.userId;
+    const request = officer.isActive === false ? this.api.reactivateOfficer(officer.userId) : this.api.deactivateOfficer(officer.userId);
+    request.subscribe({
+      next: () => {
+        this.updatingOfficerId = null;
+        this.toast.show('Officer status updated.');
+        this.load();
+      },
+      error: error => {
+        this.updatingOfficerId = null;
+        this.toast.show(error.error?.message || 'Could not update officer.', 'danger');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
 }

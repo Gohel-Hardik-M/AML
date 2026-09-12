@@ -1,7 +1,8 @@
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { BatchSummary } from '../../models';
 import { ToastService } from '../../toast.service';
 
 @Component({
@@ -10,25 +11,50 @@ import { ToastService } from '../../toast.service';
   imports: [CommonModule],
   templateUrl: './upload.component.html'
 })
-export class UploadComponent {
+export class UploadComponent implements OnInit {
   selected: File | null = null;
   fileError = '';
   uploading = false;
   uploadSuccessMessage = '';
+  inlineErrorMessage = '';
+  batches: BatchSummary[] = [];
+  loadingBatches = false;
 
   private api = inject(ApiService);
   private toast = inject(ToastService);
   private changeDetector = inject(ChangeDetectorRef);
   private router = inject(Router, { optional: true });
 
+  ngOnInit() {
+    this.loadBatches();
+  }
+
   goToAlerts() {
     this.router?.navigate(['/alerts']);
+  }
+
+  loadBatches() {
+    if (!this.api?.batches) return;
+    this.loadingBatches = true;
+    this.api.batches(0, 10).subscribe({
+      next: page => {
+        this.batches = page?.content || [];
+        this.loadingBatches = false;
+        this.changeDetector.detectChanges();
+      },
+      error: () => {
+        this.batches = [];
+        this.loadingBatches = false;
+        this.changeDetector.detectChanges();
+      }
+    });
   }
 
   select(file: File | null) {
     this.selected = file;
     this.fileError = '';
     this.uploadSuccessMessage = '';
+    this.inlineErrorMessage = '';
     if (!file) return;
     const validType = /\.(xlsx?|xls)$/i.test(file.name);
     if (!validType) {
@@ -42,16 +68,18 @@ export class UploadComponent {
     if (!this.selected || this.fileError || this.uploading) return;
     this.uploading = true;
     this.uploadSuccessMessage = '';
+    this.inlineErrorMessage = '';
     this.changeDetector.detectChanges();
 
     this.api.upload(this.selected).subscribe({
       next: message => {
         this.uploading = false;
-        const msg = message || 'Transactions uploaded successfully.';
+        const msg = message || 'Transactions uploaded and screened successfully.';
         this.uploadSuccessMessage = msg;
         this.toast.show(msg);
         this.selected = null;
         if (fileInput) fileInput.value = '';
+        this.loadBatches();
         this.changeDetector.detectChanges();
       },
       error: error => {
@@ -71,10 +99,15 @@ export class UploadComponent {
           errorMessage = error.message;
         }
 
+        this.inlineErrorMessage = errorMessage;
         this.toast.show(errorMessage, 'danger');
+        // Clear selected file and reset file input to prevent accidental re-submission
+        this.selected = null;
+        if (fileInput) fileInput.value = '';
         this.changeDetector.detectChanges();
       }
     });
   }
 }
+
 

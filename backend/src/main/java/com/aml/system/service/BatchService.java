@@ -14,6 +14,9 @@ import com.aml.system.model.TenantRuleConfig;
 import com.aml.system.repository.BatchRepository;
 import com.aml.system.repository.TransactionRepository;
 import com.aml.system.repository.TenantRuleConfigRepository;
+import com.aml.system.repository.UserRepository;
+import com.aml.system.model.UserEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.aml.system.rule.RuleEngineService;
 import com.aml.system.rule.RuleEvaluationResult;
 import com.aml.system.rule.RuleEvaluationContext;
@@ -46,6 +49,26 @@ public class BatchService {
         private final RuleEngineService ruleEngineService;
         private final AlertService alertService;
         private final TenantRuleConfigRepository tenantRuleConfigRepository;
+        private final UserRepository userRepository;
+
+        @org.springframework.beans.factory.annotation.Autowired
+        public BatchService(
+                BatchRepository batchRepository,
+                TransactionRepository transactionRepository,
+                ExcelTransactionReader excelTransactionReader,
+                RuleEngineService ruleEngineService,
+                AlertService alertService,
+                TenantRuleConfigRepository tenantRuleConfigRepository,
+                UserRepository userRepository) {
+
+            this.batchRepository = batchRepository;
+            this.transactionRepository = transactionRepository;
+            this.excelTransactionReader = excelTransactionReader;
+            this.ruleEngineService = ruleEngineService;
+            this.alertService = alertService;
+            this.tenantRuleConfigRepository = tenantRuleConfigRepository;
+            this.userRepository = userRepository;
+        }
 
         public BatchService(
                 BatchRepository batchRepository,
@@ -54,13 +77,7 @@ public class BatchService {
                 RuleEngineService ruleEngineService,
                 AlertService alertService,
                 TenantRuleConfigRepository tenantRuleConfigRepository) {
-
-            this.batchRepository = batchRepository;
-            this.transactionRepository = transactionRepository;
-            this.excelTransactionReader = excelTransactionReader;
-            this.ruleEngineService = ruleEngineService;
-            this.alertService = alertService;
-            this.tenantRuleConfigRepository = tenantRuleConfigRepository;
+            this(batchRepository, transactionRepository, excelTransactionReader, ruleEngineService, alertService, tenantRuleConfigRepository, null);
         }
 
         @Transactional(rollbackOn = Exception.class)
@@ -100,8 +117,20 @@ public class BatchService {
                                        throw new DuplicateBatchException("This exact file has already been uploaded.");
                         }
 
+                        UUID uploadedById = null;
+                        if (userRepository != null) {
+                            var auth = SecurityContextHolder.getContext().getAuthentication();
+                            String username = (auth != null && auth.isAuthenticated()) ? auth.getName() : null;
+                            if (username != null && !username.isBlank() && !"anonymousUser".equals(username)) {
+                                uploadedById = userRepository.findByTenantIdAndUsername(tenantId, username)
+                                        .map(UserEntity::getUserId)
+                                        .orElse(null);
+                            }
+                        }
+
             Batch batch = Batch.builder()
                                         .tenantId(tenantId)
+                                        .uploadedById(uploadedById)
                                         .batchDate(batchDate)
                                         .fileChecksum(fileChecksum)
                     .fileName(file.getOriginalFilename())
@@ -186,13 +215,19 @@ public class BatchService {
                                 batch.getId(),
                                 batch.getFileName(),
                                 batch.getStatus(),
-                                batch.getUploadedAt()))
+                                batch.getUploadedAt(),
+                                batch.getUploadedById()))
                         .toList();
         }
 
         public Page<BatchSummaryDto> listBatches(Pageable pageable) {
                 return batchRepository.findAllByOrderByUploadedAtDesc(pageable)
-                        .map(batch -> new BatchSummaryDto(batch.getId(), batch.getFileName(), batch.getStatus(), batch.getUploadedAt()));
+                        .map(batch -> new BatchSummaryDto(
+                                batch.getId(),
+                                batch.getFileName(),
+                                batch.getStatus(),
+                                batch.getUploadedAt(),
+                                batch.getUploadedById()));
         }
 
 }

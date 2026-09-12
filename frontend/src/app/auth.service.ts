@@ -8,11 +8,13 @@ const TOKEN_KEY = 'aml_token';
 const ROLE_KEY = 'aml_role';
 const TENANT_KEY = 'aml_tenant';
 const USER_KEY = 'aml_user';
+const MUST_RESET_KEY = 'aml_must_reset_password';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly currentRole = signal<string | null>(sessionStorage.getItem(ROLE_KEY));
   readonly tenantId = signal<string | null>(sessionStorage.getItem(TENANT_KEY));
+  readonly mustChangePassword = signal<boolean>(sessionStorage.getItem(MUST_RESET_KEY) === 'true');
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -28,20 +30,38 @@ export class AuthService {
         const serverTenant = master ? 'MASTER' : this.readTenant(result.token) || tenantId;
         sessionStorage.setItem(TENANT_KEY, serverTenant.toUpperCase());
         sessionStorage.setItem(USER_KEY, username);
+        const mustReset = !!result.isTemporaryPassword;
+        sessionStorage.setItem(MUST_RESET_KEY, String(mustReset));
         this.currentRole.set(role);
         this.tenantId.set(serverTenant.toUpperCase());
+        this.mustChangePassword.set(mustReset);
       })
     );
   }
 
   resetPassword(payload: object) {
-    return this.http.post('/api/v1/auth/reset-password', payload);
+    return this.http.post('/api/v1/auth/reset-password', payload).pipe(
+      tap(() => {
+        this.clearMustChangePassword();
+      })
+    );
+  }
+
+  clearMustChangePassword() {
+    sessionStorage.removeItem(MUST_RESET_KEY);
+    this.mustChangePassword.set(false);
   }
 
   token() { return sessionStorage.getItem(TOKEN_KEY); }
   username() { return sessionStorage.getItem(USER_KEY) || ''; }
   isAuthenticated() { return !!this.token(); }
-  logout() { sessionStorage.clear(); this.currentRole.set(null); this.tenantId.set(null); this.router.navigate(['/login'], { replaceUrl: true }); }
+  logout() {
+    sessionStorage.clear();
+    this.currentRole.set(null);
+    this.tenantId.set(null);
+    this.mustChangePassword.set(false);
+    this.router.navigate(['/login'], { replaceUrl: true });
+  }
 
   private readRole(token: string) {
     try {
