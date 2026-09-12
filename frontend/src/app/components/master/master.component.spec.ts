@@ -12,6 +12,7 @@ describe('MasterComponent', () => {
     allocateRules: ReturnType<typeof vi.fn>;
     tenantAllocation: ReturnType<typeof vi.fn>;
     removeTenantRule: ReturnType<typeof vi.fn>;
+    tenants: ReturnType<typeof vi.fn>;
   };
   let toast: { show: ReturnType<typeof vi.fn> };
 
@@ -23,6 +24,7 @@ describe('MasterComponent', () => {
       allocateRules: vi.fn(),
       tenantAllocation: vi.fn(),
       removeTenantRule: vi.fn(),
+      tenants: vi.fn().mockReturnValue(of({})),
     };
     toast = { show: vi.fn() };
     await TestBed.configureTestingModule({
@@ -56,5 +58,59 @@ describe('MasterComponent', () => {
     component.allocate({ invalid: false });
 
     expect(api.allocateRules).toHaveBeenCalledWith({ tenantId: 'BANK_A', ruleCodes: ['VELOCITY_001'] });
+  });
+
+  it('rejects onboarding when tenantCode contains spaces and suggests underscore replacement', () => {
+    const component = TestBed.createComponent(MasterComponent).componentInstance;
+    component.tenant = {
+      tenantCode: 'sbi bank',
+      bankName: 'Sbi',
+      adminUsername: 'sbi_admin',
+      adminEmail: 'hardikkashiyani123456788@gmail.com',
+    };
+    const mockForm = {
+      invalid: true,
+      control: { markAllAsTouched: vi.fn() },
+    };
+
+    expect(component.suggestedTenantCode).toBe('sbi_bank');
+    component.onboard(mockForm);
+
+    expect(mockForm.control.markAllAsTouched).toHaveBeenCalled();
+    expect(api.tenants).not.toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledWith(
+      'Tenant code cannot contain spaces. Use underscores or hyphens instead (e.g. "sbi_bank").',
+      'danger'
+    );
+
+    component.applySuggestedTenantCode();
+    expect(component.tenant.tenantCode).toBe('sbi_bank');
+    expect(component.validTenant()).toBe(true);
+  });
+
+  it('successfully onboards a valid tenant', () => {
+    const component = TestBed.createComponent(MasterComponent).componentInstance;
+    component.tenant = {
+      tenantCode: 'sbi_bank',
+      bankName: 'State Bank of India',
+      adminUsername: 'sbi_admin',
+      adminEmail: 'admin@sbi.com',
+    };
+    const mockForm = {
+      invalid: false,
+      resetForm: vi.fn(),
+      control: { markAllAsTouched: vi.fn() },
+    };
+
+    component.onboard(mockForm);
+
+    expect(api.tenants).toHaveBeenCalledWith({
+      tenantCode: 'sbi_bank',
+      bankName: 'State Bank of India',
+      adminUsername: 'sbi_admin',
+      adminEmail: 'admin@sbi.com',
+    });
+    expect(toast.show).toHaveBeenCalledWith('Tenant onboarded.');
+    expect(mockForm.resetForm).toHaveBeenCalled();
   });
 });

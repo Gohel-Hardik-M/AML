@@ -1,6 +1,133 @@
 <div class="container-fluid py-5 px-3 px-lg-5"><div class="mb-5"><p class="text-primary text-uppercase small fw-bold mb-2">System administration</p><h1 class="display-6 fw-bold mb-2">Master administration</h1><p class="text-secondary mb-0">Provision tenants and assign rules from the central catalog.</p></div>
 <section class="mb-5"><div class="mb-3"><h2 class="h4 fw-bold">Tenant directory</h2><p class="text-secondary">Select a tenant from the master registry.</p></div><div class="alert alert-danger" *ngIf="tenantLoadError">{{tenantLoadError}}</div><div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Tenant ID</th><th>Bank name</th><th>Status</th><th>Created</th></tr></thead><tbody><tr *ngFor="let item of tenants"><td><button class="btn btn-link p-0 fw-semibold" (click)="chooseTenant(item.tenantId)">{{item.tenantId}}</button></td><td>{{item.bankName}}</td><td><span class="badge text-bg-success" *ngIf="item.isActive">Active</span><span class="badge text-bg-secondary" *ngIf="!item.isActive">Inactive</span></td><td>{{item.createdAt ? (item.createdAt | date:'mediumDate') : '—'}}</td></tr><tr *ngIf="!tenantsLoading && !tenants.length"><td colspan="4" class="text-center py-4 text-secondary">No tenants found.</td></tr></tbody></table></div></div></section>
-<section class="mb-5"><div class="mb-3"><h2 class="h4 fw-bold">Onboard a tenant</h2><p class="text-secondary">Create the tenant and its initial administrator.</p></div><div class="card border-0 shadow-sm"><div class="card-body p-4"><form #tenantForm="ngForm" (ngSubmit)="onboard(tenantForm)" novalidate><div class="row g-3"><div class="col-md-6"><label class="form-label">Tenant code</label><input class="form-control" name="tenantCode" [(ngModel)]="tenant.tenantCode" required maxlength="64" pattern="^[A-Za-z0-9_\-]+$"></div><div class="col-md-6"><label class="form-label">Bank name</label><input class="form-control" name="bankName" [(ngModel)]="tenant.bankName" required minlength="2" maxlength="255"></div><div class="col-md-6"><label class="form-label">Admin username</label><input class="form-control" name="adminUsername" [(ngModel)]="tenant.adminUsername" required maxlength="64" pattern="^[A-Za-z0-9._\-]+$"></div><div class="col-md-6"><label class="form-label">Admin email</label><input class="form-control" type="email" name="adminEmail" [(ngModel)]="tenant.adminEmail" required maxlength="254"></div></div><button class="btn btn-primary mt-4" [disabled]="tenantForm.invalid || !validTenant()">Onboard tenant</button></form></div></div></section>
+<section class="mb-5">
+  <div class="mb-3">
+    <h2 class="h4 fw-bold">Onboard a tenant</h2>
+    <p class="text-secondary">Create the tenant and its initial administrator.</p>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form #tenantForm="ngForm" (ngSubmit)="onboard(tenantForm)" novalidate>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="tenantCode">Tenant code</label>
+            <input
+              id="tenantCode"
+              class="form-control"
+              [class.is-invalid]="tenantCodeField.invalid && (tenantCodeField.touched || tenantCodeField.dirty)"
+              name="tenantCode"
+              [(ngModel)]="tenant.tenantCode"
+              #tenantCodeField="ngModel"
+              placeholder="e.g. sbi_bank"
+              required
+              maxlength="64"
+              pattern="^[A-Za-z0-9_\-]+$"
+              autocomplete="off">
+            <div class="invalid-feedback" *ngIf="tenantCodeField.errors?.['required']">
+              Tenant code is required.
+            </div>
+            <div class="invalid-feedback" *ngIf="tenantCodeField.errors?.['pattern']">
+              Tenant code cannot contain spaces. Use letters, numbers, hyphens, and underscores only.
+              <div class="mt-2" *ngIf="tenant.tenantCode && tenant.tenantCode.includes(' ')">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="applySuggestedTenantCode()">
+                  Fix to "{{ suggestedTenantCode }}"
+                </button>
+              </div>
+            </div>
+            <div class="form-text" *ngIf="!tenantCodeField.invalid">
+              Allowed characters: letters, numbers, underscores (_), hyphens (-). No spaces allowed.
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="bankName">Bank name</label>
+            <input
+              id="bankName"
+              class="form-control"
+              [class.is-invalid]="bankNameField.invalid && (bankNameField.touched || bankNameField.dirty)"
+              name="bankName"
+              [(ngModel)]="tenant.bankName"
+              #bankNameField="ngModel"
+              placeholder="e.g. State Bank of India"
+              required
+              minlength="2"
+              maxlength="255">
+            <div class="invalid-feedback" *ngIf="bankNameField.errors?.['required']">
+              Bank name is required.
+            </div>
+            <div class="invalid-feedback" *ngIf="bankNameField.errors?.['minlength']">
+              Bank name must be at least 2 characters long.
+            </div>
+            <div class="form-text" *ngIf="!bankNameField.invalid">
+              Official legal name of the bank or financial institution.
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="adminUsername">Admin username</label>
+            <input
+              id="adminUsername"
+              class="form-control"
+              [class.is-invalid]="adminUsernameField.invalid && (adminUsernameField.touched || adminUsernameField.dirty)"
+              name="adminUsername"
+              [(ngModel)]="tenant.adminUsername"
+              #adminUsernameField="ngModel"
+              placeholder="e.g. sbi_admin"
+              required
+              maxlength="64"
+              pattern="^[A-Za-z0-9._\-]+$"
+              autocomplete="off">
+            <div class="invalid-feedback" *ngIf="adminUsernameField.errors?.['required']">
+              Admin username is required.
+            </div>
+            <div class="invalid-feedback" *ngIf="adminUsernameField.errors?.['pattern']">
+              Admin username can only contain letters, numbers, dots (.), underscores (_), or hyphens (-).
+            </div>
+            <div class="form-text" *ngIf="!adminUsernameField.invalid">
+              Login username assigned to the primary bank administrator.
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="adminEmail">Admin email</label>
+            <input
+              id="adminEmail"
+              class="form-control"
+              [class.is-invalid]="adminEmailField.invalid && (adminEmailField.touched || adminEmailField.dirty)"
+              type="email"
+              name="adminEmail"
+              [(ngModel)]="tenant.adminEmail"
+              #adminEmailField="ngModel"
+              placeholder="e.g. admin@sbi.com"
+              required
+              maxlength="254"
+              pattern="^[^\s@]+@[^\s@]+\.[A-Za-z]{2,63}$"
+              autocomplete="off">
+            <div class="invalid-feedback" *ngIf="adminEmailField.errors?.['required']">
+              Admin email is required.
+            </div>
+            <div class="invalid-feedback" *ngIf="adminEmailField.errors?.['pattern'] || adminEmailField.errors?.['email']">
+              Please enter a valid administrator email address.
+            </div>
+            <div class="form-text" *ngIf="!adminEmailField.invalid">
+              Initial password and setup notifications will be delivered to this email.
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 mt-4">
+          <button type="submit" class="btn btn-primary px-4" [disabled]="onboardingLoading">
+            <span class="spinner-border spinner-border-sm me-2" *ngIf="onboardingLoading" role="status" aria-hidden="true"></span>
+            {{ onboardingLoading ? 'Onboarding tenant...' : 'Onboard tenant' }}
+          </button>
+          <span class="text-secondary small" *ngIf="!onboardingLoading && (tenantForm.invalid || !validTenant()) && (tenantForm.dirty || tenantForm.touched)">
+            <span class="text-danger fw-semibold">Note:</span> Please fix the highlighted fields above before onboarding.
+          </span>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
 <section class="mb-5"><div class="mb-3"><h2 class="h4 fw-bold">Allocate rules</h2><p class="text-secondary">Assign rules from the central catalog to a tenant.</p></div><div class="card border-0 shadow-sm"><div class="card-body p-4"><form #allocationForm="ngForm" (ngSubmit)="allocate(allocationForm)"><div class="row g-3"><div class="col-lg-5"><label class="form-label">Tenant</label><select class="form-select" name="allocationTenant" [(ngModel)]="allocationTenant" required><option value="">Select a tenant</option><option *ngFor="let item of tenants" [value]="item.tenantId">{{item.tenantId}} - {{item.bankName}}</option></select></div><div class="col-lg-7"><label class="form-label">Search catalog</label><input class="form-control" name="ruleSearch" [(ngModel)]="ruleSearch" placeholder="Search rule code or description"></div></div><div class="row g-3 mt-2"><div class="col-md-6" *ngFor="let rule of filteredCatalog"><label class="border rounded p-3 d-block"><input type="checkbox" class="form-check-input me-2" [checked]="isSelected(rule.ruleCode)" (change)="toggleRule(rule.ruleCode)"><strong>{{rule.ruleCode}}</strong><span class="d-block small text-secondary mt-1">{{rule.description}}</span></label></div></div><button class="btn btn-primary mt-4" [disabled]="allocationForm.invalid || !selectedRuleCodes.length">Allocate selected rules</button></form></div></div></section>
 <section id="allocation-section"><div class="mb-3"><h2 class="h4 fw-bold">Review tenant allocation</h2></div><div class="card border-0 shadow-sm"><div class="card-body p-4"><div class="input-group"><input class="form-control" name="lookupTenant" [(ngModel)]="lookupTenant" placeholder="Tenant ID"><button class="btn btn-outline-primary" [disabled]="!isTenantId(lookupTenant) || loadingAllocation" (click)="loadAllocation()">Load allocation</button></div><div class="alert alert-danger mt-3" *ngIf="allocationLoadError">{{allocationLoadError}}</div><div class="list-group mt-3" *ngIf="allocationLoaded"><div class="list-group-item d-flex justify-content-between" *ngFor="let rule of allocation"><span><strong>{{rule.ruleCode}}</strong> {{rule.description}}</span><button class="btn btn-sm btn-outline-danger" (click)="remove(rule.ruleCode || '')">Remove</button></div><p class="text-secondary" *ngIf="!allocation.length">No rules allocated.</p></div></div></div></section>
 </div>
