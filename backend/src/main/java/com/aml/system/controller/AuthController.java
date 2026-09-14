@@ -45,7 +45,7 @@ public class AuthController {
         }
 
         try {
-            // 1. Set the database context BEFORE the transactional service is called
+
             TenantContextHolder.setTenantId(tenantId);
 
             // 2. Call the service
@@ -53,15 +53,11 @@ public class AuthController {
             return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
 
         } finally {
-            // 3. Always clean up!
+
             TenantContextHolder.clear();
         }
     }
 
-    /**
-     * Password reset — NOW requires JWT authentication (audit finding #17).
-     * The SecurityConfig only permits /login and /master/login without JWT.
-     */
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @Valid @RequestBody PasswordResetDto request,
@@ -89,7 +85,6 @@ public class AuthController {
         }
     }
 
-    // --- ENDPOINT FOR GLOBAL SAAS ADMIN ---
     @PostMapping("/master/login")
     public ResponseEntity<ApiResponse<LoginResponseDto>> masterLogin(
             @Valid @RequestBody MasterLoginRequestDto request,

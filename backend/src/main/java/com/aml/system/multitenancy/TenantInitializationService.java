@@ -88,6 +88,7 @@ public class TenantInitializationService {
             }
 
             log.info("Initializing connection and migrating Tenant: {}", tenantId);
+            //tenant and the hikaricp add in the concerantHashmap inside named dataSources
             routingDataSource.addTenantDataSource(tenantId, url, username, password);
 
             Flyway tenantFlyway = Flyway.configure()

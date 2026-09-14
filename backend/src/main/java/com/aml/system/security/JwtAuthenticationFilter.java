@@ -86,7 +86,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     role = "ROLE_" + role;
                 }
 
-                // 4. Check if user is still active and not locked (audit finding #24)
+                // 4. Check if user is still active and not locked
                 if (!isUserStillValid(tenantId, username)) {
                     log.warn("JWT valid but user '{}' is inactive/locked. Rejecting request.", username);
                     TenantContextHolder.clear();
@@ -125,10 +125,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * Checks if the user is still active and not locked.
-     * For MASTER tenant, checks system_admins. For others, checks aml_users.
-     */
+
     private boolean isUserStillValid(String tenantId, String username) {
         try {
             if ("MASTER".equals(tenantId)) {

@@ -18,7 +18,7 @@ import com.aml.system.service.AuditLogService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import com.aml.system.service.AlertPdfService;
+
 
 
 @RestController

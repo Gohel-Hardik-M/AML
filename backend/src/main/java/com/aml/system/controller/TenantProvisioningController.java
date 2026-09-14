@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/master/tenants") // Notice the different path to separate from tenant-level admin
+@RequestMapping("/api/v1/master/tenants")
 public class TenantProvisioningController {
 
     private final TenantProvisioningService tenantProvisioningService;
@@ -21,14 +21,12 @@ public class TenantProvisioningController {
         this.tenantProvisioningService = tenantProvisioningService;
     }
 
-    // Only global SYSTEM_ADMIN users can onboard brand new banks
     @PostMapping
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> onboardBank(@Valid @RequestBody TenantOnboardRequestDto request) {
 
         String resultMessage = tenantProvisioningService.onboardNewBank(request);
 
-        // No passwords or emails in API response (audit finding #6) — credentials go via email only
         return ResponseEntity.ok(ApiResponse.success(resultMessage));
     }
 

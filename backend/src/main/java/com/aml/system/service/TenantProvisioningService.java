@@ -159,9 +159,6 @@ public class TenantProvisioningService {
     }
 
     /**
-     * Generates a temporary password using only letters and numbers.
-     * No special characters — prevents copy-paste issues from email clients.
-     *
      * Example output: "TmPx7Kn3Rq2W"
      */
     public static String generateTempPassword() {

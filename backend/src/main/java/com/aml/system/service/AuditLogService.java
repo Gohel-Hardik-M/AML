@@ -3,20 +3,25 @@ package com.aml.system.service;
 import com.aml.system.model.SystemAuditLog;
 import com.aml.system.repository.SystemAuditLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuditLogService {
 
     private final SystemAuditLogRepository auditLogRepository;
+    private final TransactionTemplate transactionTemplate;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public AuditLogService(SystemAuditLogRepository auditLogRepository, PlatformTransactionManager transactionManager) {
+        this.auditLogRepository = auditLogRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
     public void logAction(String userId, String actionType, String affectedRecordId, String details, HttpServletRequest request) {
         String ipAddress = (request != null) ? request.getRemoteAddr() : "SYSTEM";
 
@@ -29,7 +34,10 @@ public class AuditLogService {
                 .build();
 
         try {
-            auditLogRepository.save(audit);
+            transactionTemplate.execute(status -> {
+                auditLogRepository.saveAndFlush(audit);
+                return null;
+            });
             log.info("AUDIT: User [{}] executed [{}] on Record [{}] from IP [{}]", userId, actionType, affectedRecordId, ipAddress);
         } catch (Exception e) {
             // Fallback: if DB save fails, ensure the audit event is at least captured in logs.

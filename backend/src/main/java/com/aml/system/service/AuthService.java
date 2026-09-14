@@ -43,10 +43,6 @@ public class AuthService {
         this.masterJdbcTemplate = masterJdbcTemplate;
     }
 
-    /**
-     * Authenticates a tenant user with pessimistic locking to prevent
-     * race conditions on the failed_attempts counter (audit finding #3).
-     */
     @Transactional
     public LoginResponseDto login(LoginRequestDto request, HttpServletRequest httpRequest) {
         String tenantId = request.getTenantId();
@@ -68,8 +64,6 @@ public class AuthService {
             );
         }
 
-        // Uses PESSIMISTIC_WRITE lock to prevent concurrent login attempts
-        // from causing lost updates on failed_attempts counter.
         UserEntity user = userRepository.findByTenantIdAndUsernameForUpdate(tenantId, username)
                 .orElseThrow(() -> new AmlBusinessException("Invalid username or password"));
 
@@ -143,10 +137,6 @@ public class AuthService {
         return response;
     }
 
-    /**
-     * Resets a user's password. Requires knowing the current password.
-     * TenantContextHolder is set by the controller/filter — NOT duplicated here (audit finding #30).
-     */
     @Transactional
     public void resetPassword(PasswordResetDto request, String username, String tenantId, HttpServletRequest httpRequest) {
         UserEntity user = userRepository.findByTenantIdAndUsername(tenantId, username)

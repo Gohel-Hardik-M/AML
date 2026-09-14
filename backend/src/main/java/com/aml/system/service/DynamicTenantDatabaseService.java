@@ -38,17 +38,13 @@ public class DynamicTenantDatabaseService {
         this.encryptionService = encryptionService;
     }
 
-    /**
-     * Provisions a new tenant database: creates DB, runs Flyway, registers in routing, persists to registry.
-     * Includes compensation logic for partial failures (audit finding #9).
-     */
+
     public void provisionNewTenantDatabase(String tenantId, String bankName) {
-        // Defense-in-depth: re-validate tenantId server-side even though DTO has @Pattern
+
         if (!tenantId.matches("^[A-Za-z0-9_-]+$")) {
             throw new AmlBusinessException("Invalid tenant ID format", HttpStatus.BAD_REQUEST);
         }
 
-        // Sanitize DB name: strip anything non-alphanumeric/underscore to prevent SQL injection
         String sanitizedTenantId = tenantId.replaceAll("[^a-zA-Z0-9_]", "");
         String dbName = "aml_" + sanitizedTenantId.toLowerCase();
         String safeBankName = (bankName == null || bankName.isBlank()) ? tenantId : bankName;
@@ -79,8 +75,6 @@ public class DynamicTenantDatabaseService {
         String jdbcUrl = "jdbc:postgresql://localhost:5432/" + dbName;
 
         try {
-            // 1. Create the brand new database via Master connection if needed
-            // Uses quoted identifier to prevent SQL injection (audit finding #1)
             if (existingDatabase == null || existingDatabase == 0) {
                 masterJdbcTemplate.execute("CREATE DATABASE \"" + dbName + "\"");
                 dbCreatedByUs = true;
@@ -102,10 +96,10 @@ public class DynamicTenantDatabaseService {
             routingDataSource.addTenantDataSource(tenantId, jdbcUrl, dbUsername, dbPassword);
             routingRegistered = true;
 
-            // 5. Encrypt credentials before persisting to registry (audit finding #18)
+            // 5. Encrypt credentials before persisting to registry
             String encryptedPassword = encryptionService.encrypt(dbPassword);
 
-            // 6. Persist to Master DB with ON CONFLICT DO NOTHING to handle TOCTOU race (audit finding #2)
+
             int rowsInserted = masterJdbcTemplate.update(
                 "INSERT INTO aml_tenant_registry (tenant_id, bank_name, db_url, db_username, db_password, is_active) " +
                 "VALUES (?, ?, ?, ?, ?, true) ON CONFLICT (tenant_id) DO NOTHING",
@@ -126,7 +120,7 @@ public class DynamicTenantDatabaseService {
             // Compensation: rollback partial state on unexpected failures
             log.error("Tenant provisioning failed for '{}'. Initiating compensation.", tenantId, e);
 
-            // Remove from registry if it was inserted
+
             if (registryInserted) {
                 masterJdbcTemplate.update("DELETE FROM aml_tenant_registry WHERE tenant_id = ? AND db_url = ?",
                     tenantId, jdbcUrl);
@@ -134,6 +128,7 @@ public class DynamicTenantDatabaseService {
 
             if (routingRegistered) {
                 try {
+                    //remove the hikaricp if added then in tenantroutingfile
                     routingDataSource.removeTenantDataSource(tenantId);
                 } catch (Exception removeEx) {
                     log.error("Compensation: failed to remove datasource for '{}': {}", tenantId, removeEx.getMessage());
