@@ -1,8 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { map, tap } from 'rxjs';
-import { ApiResponse, LoginResponse } from './models';
+import { tap } from 'rxjs';
+import { LoginResponse } from './models';
 
 const TOKEN_KEY = 'aml_token';
 const ROLE_KEY = 'aml_role';
@@ -21,8 +21,7 @@ export class AuthService {
   login(username: string, password: string, tenantId: string, master = false) {
     const body = master ? { username, password } : { username, password, tenantId };
     const endpoint = master ? '/api/v1/auth/master/login' : '/api/v1/auth/login';
-    return this.http.post<ApiResponse<LoginResponse> | LoginResponse>(endpoint, body).pipe(
-      map((response) => ('data' in response && response.data ? response.data : response) as LoginResponse),
+    return this.http.post<LoginResponse>(endpoint, body).pipe(
       tap((result) => {
         sessionStorage.setItem(TOKEN_KEY, result.token);
         const role = this.normalizeRole(this.readRole(result.token) || (master ? 'SYSTEM_ADMIN' : 'TENANT_ADMIN'));

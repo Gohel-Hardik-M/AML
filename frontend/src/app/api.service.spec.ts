@@ -69,7 +69,7 @@ describe('ApiService', () => {
 
     const req = httpMock.expectOne('/api/v1/bank-admin/alerts/unassigned');
     expect(req.request.method).toBe('GET');
-    req.flush({ success: true, data: [{ alertId: 'alt-101', ruleCode: 'VELOCITY_001' }] });
+    req.flush([{ alertId: 'alt-101', ruleCode: 'VELOCITY_001' }]);
   });
 
   it('createOfficer posts payload to /api/v1/bank-admin/compliance-officers', () => {
@@ -100,13 +100,13 @@ describe('ApiService', () => {
     });
     const req1 = httpMock.expectOne('/api/v1/bank-admin/rules/RULE_001');
     expect(req1.request.method).toBe('GET');
-    req1.flush({ success: true, data: { ruleCode: 'RULE_001', thresholdAmount: 10000 } });
+    req1.flush({ ruleCode: 'RULE_001', thresholdAmount: 10000 });
 
     service.updateRule('RULE_001', { thresholdAmount: 20000 }).subscribe();
     const req2 = httpMock.expectOne('/api/v1/bank-admin/rules/RULE_001');
     expect(req2.request.method).toBe('PUT');
     expect(req2.request.body).toEqual({ thresholdAmount: 20000 });
-    req2.flush({ success: true, data: { ruleCode: 'RULE_001', thresholdAmount: 20000 } });
+    req2.flush({ ruleCode: 'RULE_001', thresholdAmount: 20000 });
   });
 
   it('assignAlerts and unassignAlerts send assignment requests to backend', () => {
@@ -128,7 +128,7 @@ describe('ApiService', () => {
     const req1 = httpMock.expectOne('/api/v1/compliance/alerts/alt-1/close');
     expect(req1.request.method).toBe('PUT');
     expect(req1.request.body).toEqual({ reviewNotes: 'Reviewed and resolved' });
-    req1.flush({ success: true, data: { alertId: 'alt-1', reviewed: true } });
+    req1.flush({ alertId: 'alt-1', reviewed: true });
 
     service.alertPdf('alt-1', 'SAR filed with FinCEN').subscribe((blob) => {
       expect(blob).toBeTruthy();
@@ -146,7 +146,7 @@ describe('ApiService', () => {
     });
     const req1 = httpMock.expectOne('/api/v1/master/rules/catalog');
     expect(req1.request.method).toBe('GET');
-    req1.flush({ success: true, data: [{ ruleCode: 'RULE_GEO', ruleName: 'Geographic Risk' }] });
+    req1.flush([{ ruleCode: 'RULE_GEO', ruleName: 'Geographic Risk' }]);
 
     service.allocateRules({ tenantId: 'BANK_B', ruleCodes: ['RULE_GEO'] }).subscribe();
     const req2 = httpMock.expectOne('/api/v1/master/rules/allocate');
