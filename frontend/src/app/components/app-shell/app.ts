@@ -18,7 +18,6 @@ export class App {
   logout() { this.auth.logout(); }
   isAuthLayout() {
     return this.router.url.startsWith('/login') ||
-           this.router.url.startsWith('/reset-password') ||
            this.auth.mustChangePassword();
   }
   isLogin() { return this.isAuthLayout(); }

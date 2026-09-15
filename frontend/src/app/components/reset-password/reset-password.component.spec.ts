@@ -9,6 +9,7 @@ describe('ResetPasswordComponent', () => {
   let authService: {
     resetPassword: ReturnType<typeof vi.fn>;
     currentRole: ReturnType<typeof vi.fn>;
+    mustChangePassword: ReturnType<typeof vi.fn>;
   };
   let toastService: { show: ReturnType<typeof vi.fn> };
   let router: { navigate: ReturnType<typeof vi.fn> };
@@ -16,7 +17,8 @@ describe('ResetPasswordComponent', () => {
   beforeEach(async () => {
     authService = {
       resetPassword: vi.fn(),
-      currentRole: vi.fn().mockReturnValue('TENANT_ADMIN')
+      currentRole: vi.fn().mockReturnValue('TENANT_ADMIN'),
+      mustChangePassword: vi.fn().mockReturnValue(true)
     };
     toastService = { show: vi.fn() };
     router = { navigate: vi.fn() };

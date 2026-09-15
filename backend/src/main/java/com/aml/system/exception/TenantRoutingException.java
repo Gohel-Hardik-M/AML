@@ -1,9 +1,11 @@
 package com.aml.system.exception;
 
-import org.springframework.http.HttpStatus;
-
-public class TenantRoutingException extends AmlBusinessException {
+public class TenantRoutingException extends RuntimeException {
     public TenantRoutingException(String message) {
-        super(message, HttpStatus.BAD_REQUEST);
+        super(message);
+    }
+
+    public TenantRoutingException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

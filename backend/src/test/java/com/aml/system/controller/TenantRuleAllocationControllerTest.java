@@ -45,8 +45,7 @@ class TenantRuleAllocationControllerTest {
 
         mockMvc.perform(get("/api/v1/master/rules/catalog"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].rule_code").value("VELOCITY_001"));
+                .andExpect(jsonPath("$[0].rule_code").value("VELOCITY_001"));
     }
 
     @Test
@@ -57,7 +56,7 @@ class TenantRuleAllocationControllerTest {
 
         mockMvc.perform(get("/api/v1/master/rules/tenant/BANK_A"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$").isArray());
     }
 
     @Test

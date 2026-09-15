@@ -55,7 +55,7 @@ class TenantProvisioningControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.message").value("Tenant 'HDFC_BANK' provisioned successfully."));
     }
 
     @Test
@@ -91,6 +91,7 @@ class TenantProvisioningControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.statusCode").value(409))
                 .andExpect(jsonPath("$.message").value("Tenant 'EXISTING_BANK' already exists."));
     }
 
@@ -102,6 +103,6 @@ class TenantProvisioningControllerTest {
 
         mockMvc.perform(get("/api/v1/master/tenants"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$").isArray());
     }
 }

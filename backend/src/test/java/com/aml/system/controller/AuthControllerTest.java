@@ -54,7 +54,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/auth/login: Successful login returns token and user info")
+    @DisplayName("POST /api/v1/auth/login: Successful login returns token and user info directly")
     void login_success() throws Exception {
         LoginRequestDto request = new LoginRequestDto();
         request.setUsername("officer_bob");
@@ -73,24 +73,23 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.token").value("mock-jwt-token"));
+                .andExpect(jsonPath("$.token").value("mock-jwt-token"));
     }
 
     @Test
-    @DisplayName("POST /api/v1/auth/login: Rejects login when tenant is not active or registered")
+    @DisplayName("POST /api/v1/auth/login: Rejects login when tenant is not active or registered with ErrorResponseDto")
     void login_unknownTenant_returnsBadRequest() throws Exception {
         LoginRequestDto request = new LoginRequestDto();
         request.setUsername("admin");
         request.setPassword("Password@123");
         request.setTenantId("UNKNOWN_BANK");
-        // routingDataSource is a real bean and naturally returns false for UNKNOWN_BANK
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
     }
 
     @Test
@@ -104,11 +103,12 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400));
     }
 
     @Test
-    @DisplayName("POST /api/v1/auth/master/login: Master admin login succeeds")
+    @DisplayName("POST /api/v1/auth/master/login: Master admin login succeeds directly")
     void masterLogin_success() throws Exception {
         MasterLoginRequestDto request = new MasterLoginRequestDto();
         request.setUsername("superadmin");
@@ -126,7 +126,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.token").value("master-token"));
+                .andExpect(jsonPath("$.token").value("master-token"));
     }
 
     @Test
@@ -148,11 +148,12 @@ class AuthControllerTest {
     void resetPassword_weakPassword_failsValidation() throws Exception {
         PasswordResetDto resetDto = new PasswordResetDto();
         resetDto.setCurrentPassword("OldPass@123");
-        resetDto.setNewPassword("weak"); // Too short, missing upper/digit/symbol
+        resetDto.setNewPassword("weak");
 
         mockMvc.perform(post("/api/v1/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(resetDto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400));
     }
 }

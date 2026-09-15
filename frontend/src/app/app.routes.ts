@@ -15,6 +15,7 @@ import { ActivityComponent } from './components/activity/activity.component';
 export const routes: Routes = [
 	{ path: 'login', component: LoginComponent, canActivate: [guestGuard] },
 	{ path: 'reset-password', component: ResetPasswordComponent, canActivate: [authGuard] },
+	{ path: 'change-password', component: ResetPasswordComponent, canActivate: [authGuard] },
 	{ path: 'dashboard', component: DashboardComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TENANT_ADMIN', 'COMPLIANCE_OFFICER'], redirectTo: '/master' } },
 	{ path: 'alerts', component: AlertsPagedComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TENANT_ADMIN', 'COMPLIANCE_OFFICER'] } },
 	{ path: 'officers', component: OfficersComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TENANT_ADMIN'] } },

@@ -1,6 +1,5 @@
 package com.aml.system.controller;
 
-import com.aml.system.dto.ApiResponse;
 import com.aml.system.dto.admin.RuleConfigUpdateDto;
 import com.aml.system.model.TenantRuleConfig;
 import com.aml.system.service.RuleConfigService;
@@ -23,22 +22,23 @@ public class RuleConfigController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TenantRuleConfig>>> getTenantRules() {
+    public ResponseEntity<List<TenantRuleConfig>> getTenantRules() {
         List<TenantRuleConfig> rules = ruleConfigService.getTenantRules();
-        return ResponseEntity.ok(ApiResponse.success(rules));
+        return ResponseEntity.ok(rules);
     }
+
     @GetMapping("/{ruleCode}")
-    public ResponseEntity<ApiResponse<TenantRuleConfig>> getRuleByCode(@PathVariable String ruleCode) {
+    public ResponseEntity<TenantRuleConfig> getRuleByCode(@PathVariable String ruleCode) {
         TenantRuleConfig config = ruleConfigService.getRuleByCode(ruleCode);
-        return ResponseEntity.ok(ApiResponse.success(config));
+        return ResponseEntity.ok(config);
     }
 
     @PutMapping("/{ruleCode}")
-    public ResponseEntity<ApiResponse<TenantRuleConfig>> updateRuleConfig(
+    public ResponseEntity<TenantRuleConfig> updateRuleConfig(
             @PathVariable String ruleCode,
             @Valid @RequestBody RuleConfigUpdateDto dto
     ) {
         TenantRuleConfig updated = ruleConfigService.updateRuleConfig(ruleCode, dto);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Rule '" + ruleCode + "' updated successfully."));
+        return ResponseEntity.ok(updated);
     }
 }

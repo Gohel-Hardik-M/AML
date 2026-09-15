@@ -1,9 +1,11 @@
 package com.aml.system.exception;
 
-import org.springframework.http.HttpStatus;
-
-public class DuplicateTransactionException extends AmlBusinessException {
+public class DuplicateTransactionException extends RuntimeException {
     public DuplicateTransactionException(String message) {
-        super(message, HttpStatus.CONFLICT);
+        super(message);
+    }
+
+    public DuplicateTransactionException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

@@ -59,8 +59,7 @@ class ComplianceOfficerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.username").value("johndoe"));
+                .andExpect(jsonPath("$.username").value("johndoe"));
     }
 
     @Test
@@ -86,7 +85,7 @@ class ComplianceOfficerControllerTest {
 
         mockMvc.perform(get("/api/v1/bank-admin/compliance-officers"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$").isArray());
     }
 
     @Test

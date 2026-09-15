@@ -2,7 +2,10 @@ package com.aml.system.service;
 
 import com.aml.system.dto.auth.LoginResponseDto;
 import com.aml.system.dto.auth.MasterLoginRequestDto;
+import com.aml.system.dto.auth.PasswordResetDto;
 import com.aml.system.exception.AmlBusinessException;
+import com.aml.system.exception.BadRequestException;
+import com.aml.system.exception.ResourceNotFoundException;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -133,6 +136,30 @@ public class MasterAuthService {
 
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             throw new AmlBusinessException("Invalid master admin credentials.");
+        }
+    }
+
+    public void resetMasterPassword(PasswordResetDto request, String username, HttpServletRequest httpRequest) {
+        TenantContextHolder.clear();
+        try {
+            String sql = "SELECT admin_id, password_hash FROM system_admins WHERE username = ?";
+            Map<String, Object> adminData = masterJdbcTemplate.queryForMap(sql, username);
+            String adminId = adminData.get("admin_id").toString();
+            String storedHash = (String) adminData.get("password_hash");
+
+            if (!passwordEncoder.matches(request.getCurrentPassword(), storedHash)) {
+                auditLogService.logAction(username, "PWD_RESET_FAIL", adminId, "Current password mismatch", httpRequest);
+                throw new BadRequestException("Current password verification failed");
+            }
+
+            masterJdbcTemplate.update(
+                    "UPDATE system_admins SET password_hash = ?, failed_attempts = 0, is_locked = false, locked_until = NULL WHERE username = ?",
+                    passwordEncoder.encode(request.getNewPassword()), username
+            );
+
+            auditLogService.logAction(username, "PWD_RESET_SUCCESS", adminId, "Master admin password reset successfully", httpRequest);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            throw new ResourceNotFoundException("Master admin user not found");
         }
     }
 }

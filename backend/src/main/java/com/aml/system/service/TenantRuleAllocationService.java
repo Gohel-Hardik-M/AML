@@ -18,10 +18,6 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Service for System Admin to allocate AML rules to specific bank tenants.
- * System Admin controls which rules each bank is allowed to use.
- */
 @Slf4j
 @Service
 public class TenantRuleAllocationService {
@@ -38,9 +34,6 @@ public class TenantRuleAllocationService {
         this.tenantRuleConfigRepository = tenantRuleConfigRepository;
     }
 
-    /**
-     * Lists all rules available in the global catalog with display names.
-     */
     public List<Map<String, Object>> getGlobalCatalog() {
         String sql = "SELECT id, typology_name AS rule_code, typology_name, description, "
                 + "default_thresholds::text AS default_thresholds FROM aml_global_rule_catalog ORDER BY typology_name";
@@ -56,9 +49,8 @@ public class TenantRuleAllocationService {
         }).toList();
     }
 
-    /**
-     * Lists rules currently allocated to a specific tenant.
-     */
+
+
     public List<Map<String, Object>> getAllocatedRules(String tenantId) {
         verifyTenantExists(tenantId);
 
@@ -76,10 +68,8 @@ public class TenantRuleAllocationService {
         return masterJdbcTemplate.queryForList(sql);
     }
 
-    /**
-     * Allocates rules to a tenant in Master DB and initializes their configs in Tenant DB.
-     * Strictly validates every rule code against aml_global_rule_catalog.
-     */
+
+
     public String allocateRulesToTenant(TenantRuleAllocationDto dto) {
         String tenantId = dto.getTenantId().trim().toUpperCase(Locale.ROOT);
         verifyTenantExists(tenantId);
@@ -88,20 +78,27 @@ public class TenantRuleAllocationService {
             throw new AmlBusinessException("At least one rule code must be provided.", HttpStatus.BAD_REQUEST);
         }
 
-        // 1. Fetch valid catalog rules from aml_global_rule_catalog
+        // 1. Fetch  catalog rules from aml_global_rule_catalog from master db
         String catalogSql = "SELECT typology_name, description, default_thresholds::text AS default_thresholds "
             + "FROM aml_global_rule_catalog ORDER BY typology_name";
         List<Map<String, Object>> catalogRows = masterJdbcTemplate.queryForList(catalogSql);
+
+
+        //createing the map of string with the name of the rule and the obj is the default thresholds
         Map<String, String> catalogMap = catalogRows.stream()
                 .collect(Collectors.toMap(
                 row -> ((String) row.get("typology_name")).trim().toUpperCase(Locale.ROOT),
                 row -> String.valueOf(row.get("default_thresholds"))
                 ));
 
+        //remove duplicate and convert into the uppercase
         List<String> requestedCodes = dto.getRuleCodes().stream()
             .map(code -> code == null ? "" : code.trim().toUpperCase(Locale.ROOT))
-            .distinct()
+                .distinct()
             .toList();
+
+        //add those rules from the catalogmap that we fetch all the recodes from the masterdb
+        // and other one those are not in the master db that add in it.
         List<String> invalidCodes = requestedCodes.stream()
             .filter(code -> !catalogMap.containsKey(code))
                 .toList();
@@ -161,9 +158,8 @@ public class TenantRuleAllocationService {
         }
     }
 
-    /**
-     * Removes a rule allocation from a tenant.
-     */
+
+    //delete the role from the tenant rule table and in the master db table
     public String deallocateRule(String tenantId, String ruleCode) {
         String cleanTenantId = tenantId.trim().toUpperCase(Locale.ROOT);
         String cleanRuleCode = ruleCode.trim();
@@ -198,6 +194,7 @@ public class TenantRuleAllocationService {
 
         return "Rule '" + cleanRuleCode + "' removed from tenant '" + cleanTenantId + "'.";
     }
+
 
     private void verifyTenantExists(String tenantId) {
         Integer count = masterJdbcTemplate.queryForObject(

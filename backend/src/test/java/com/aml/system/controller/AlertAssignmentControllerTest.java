@@ -3,7 +3,6 @@ package com.aml.system.controller;
 import com.aml.system.dto.admin.AlertAssignmentDto;
 import com.aml.system.dto.compliance.AlertReviewRequestDto;
 import com.aml.system.model.Alert;
-import com.aml.system.model.AlertSeverity;
 import com.aml.system.service.AlertAssignmentService;
 import com.aml.system.service.AuditLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,7 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,7 +58,7 @@ class AlertAssignmentControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.message").value("Assigned 1 alert(s)"));
     }
 
     @Test
@@ -78,18 +76,18 @@ class AlertAssignmentControllerTest {
     }
 
     @Test
-    @DisplayName("GET /bank-admin/alerts/unassigned: Tenant Admin retrieves unassigned alerts")
+    @DisplayName("GET /bank-admin/alerts/unassigned: Tenant Admin retrieves unassigned alerts directly")
     @WithMockUser(roles = "TENANT_ADMIN")
     void getUnassignedAlerts_tenantAdmin_success() throws Exception {
         when(alertAssignmentService.getUnassignedAlerts()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/bank-admin/alerts/unassigned"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$").isArray());
     }
 
     @Test
-    @DisplayName("GET /compliance/alerts/my-alerts: Compliance Officer retrieves their alerts")
+    @DisplayName("GET /compliance/alerts/my-alerts: Compliance Officer retrieves their alerts directly")
     @WithMockUser(username = "officer_jane", roles = "COMPLIANCE_OFFICER")
     void getMyAlerts_complianceOfficer_success() throws Exception {
         when(alertAssignmentService.getMyAlerts(eq("officer_jane"), any()))
@@ -97,11 +95,11 @@ class AlertAssignmentControllerTest {
 
         mockMvc.perform(get("/api/v1/compliance/alerts/my-alerts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.content").isArray());
     }
 
     @Test
-    @DisplayName("PUT /compliance/alerts/{alertId}/close: Compliance officer closes alert with notes")
+    @DisplayName("PUT /compliance/alerts/{alertId}/close: Compliance officer closes alert with notes directly")
     @WithMockUser(username = "officer_jane", roles = "COMPLIANCE_OFFICER")
     void closeMyAlert_withNotes_success() throws Exception {
         UUID alertId = UUID.randomUUID();
@@ -122,7 +120,7 @@ class AlertAssignmentControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reviewRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.reviewed").value(true));
+                .andExpect(jsonPath("$.reviewed").value(true));
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.aml.system.controller;
 
-import com.aml.system.dto.ApiResponse;
 import com.aml.system.dto.admin.TenantOnboardRequestDto;
 import com.aml.system.dto.admin.TenantSummaryDto;
 import com.aml.system.service.TenantProvisioningService;
@@ -10,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/master/tenants")
@@ -23,16 +23,14 @@ public class TenantProvisioningController {
 
     @PostMapping
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> onboardBank(@Valid @RequestBody TenantOnboardRequestDto request) {
-
+    public ResponseEntity<Map<String, String>> onboardBank(@Valid @RequestBody TenantOnboardRequestDto request) {
         String resultMessage = tenantProvisioningService.onboardNewBank(request);
-
-        return ResponseEntity.ok(ApiResponse.success(resultMessage));
+        return ResponseEntity.ok(Map.of("message", resultMessage));
     }
 
     @GetMapping
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    public ResponseEntity<ApiResponse<List<TenantSummaryDto>>> listTenants() {
-        return ResponseEntity.ok(ApiResponse.success(tenantProvisioningService.listTenants()));
+    public ResponseEntity<List<TenantSummaryDto>> listTenants() {
+        return ResponseEntity.ok(tenantProvisioningService.listTenants());
     }
 }

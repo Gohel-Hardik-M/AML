@@ -1,84 +1,132 @@
 package com.aml.system.exception;
 
-import com.aml.system.dto.ApiResponse;
+import com.aml.system.dto.ErrorResponseDto;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DataAccessException;
-import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
-import jakarta.validation.ConstraintViolationException;
 
-import java.sql.SQLException;
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.util.stream.Collectors;
-import com.aml.system.multitenancy.TenantContextHolder;
 
 /**
- * Global exception handling with concise, client-friendly API errors.
+ * Global exception handler providing a clean, consistent error flow.
+ * Every exception is wrapped into ErrorResponseDto containing status code, error, message, and path.
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleResourceNotFoundException(
+            ResourceNotFoundException ex, HttpServletRequest request) {
+        log.warn("Resource not found [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponseDto> handleBadRequestException(
+            BadRequestException ex, HttpServletRequest request) {
+        log.warn("Bad request [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponseDto> handleUnauthorizedException(
+            UnauthorizedException ex, HttpServletRequest request) {
+        log.warn("Unauthorized access [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponseDto> handleForbiddenException(
+            ForbiddenException ex, HttpServletRequest request) {
+        log.warn("Forbidden access [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponseDto> handleConflictException(
+            ConflictException ex, HttpServletRequest request) {
+        log.warn("Conflict detected [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateBatchException.class)
+    public ResponseEntity<ErrorResponseDto> handleDuplicateBatchException(
+            DuplicateBatchException ex, HttpServletRequest request) {
+        log.warn("Duplicate batch on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateTransactionException.class)
+    public ResponseEntity<ErrorResponseDto> handleDuplicateTransactionException(
+            DuplicateTransactionException ex, HttpServletRequest request) {
+        log.warn("Duplicate transaction on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(NoActiveRulesException.class)
+    public ResponseEntity<ErrorResponseDto> handleNoActiveRulesException(
+            NoActiveRulesException ex, HttpServletRequest request) {
+        log.warn("No active rules on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TenantRoutingException.class)
+    public ResponseEntity<ErrorResponseDto> handleTenantRoutingException(
+            TenantRoutingException ex, HttpServletRequest request) {
+        log.warn("Tenant routing exception on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TransactionException.class)
+    public ResponseEntity<ErrorResponseDto> handleTransactionException(
+            TransactionException ex, HttpServletRequest request) {
+        log.warn("Transaction error on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(AmlBusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAmlBusinessException(AmlBusinessException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleAmlBusinessException(
+            AmlBusinessException ex, HttpServletRequest request) {
         HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST;
         log.warn("Business exception on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.status(status).body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
+        return buildResponse(status, ex.getMessage(), request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleIllegalArgument(
+            IllegalArgumentException ex, HttpServletRequest request) {
         log.warn("Invalid argument on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(
+    public ResponseEntity<ErrorResponseDto> handleHttpMessageNotReadableException(
             HttpMessageNotReadableException ex, HttpServletRequest request) {
         String message = resolveRequestBodyMessage(ex);
         log.warn("Unreadable request body on [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
-        return ResponseEntity.badRequest().body(ApiResponse.error(message, "INVALID_REQUEST_BODY", request.getRequestURI()));
-    }
-
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMissingParams(MissingServletRequestParameterException ex, HttpServletRequest request) {
-        String msg = "Required parameter '" + ex.getParameterName() + "' is missing.";
-        log.warn("Missing parameter on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(msg, request.getRequestURI()));
-    }
-
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
-        String msg = "Invalid format for parameter '" + ex.getName() + "'. Expected type: " + requiredType;
-        log.warn("Type mismatch on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(msg, request.getRequestURI()));
-    }
-
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMaxSizeException(MaxUploadSizeExceededException ex, HttpServletRequest request) {
-        log.warn("Max upload size exceeded on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(
-                ApiResponse.error("File size exceeds the allowed server limit.", request.getRequestURI())
-        );
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException ex, HttpServletRequest request) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .distinct()
@@ -89,55 +137,89 @@ public class GlobalExceptionHandler {
         }
 
         log.warn("Validation failed on [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
-        return ResponseEntity.badRequest().body(ApiResponse.error(message, request.getRequestURI()));
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(
+    public ResponseEntity<ErrorResponseDto> handleConstraintViolationException(
             ConstraintViolationException ex, HttpServletRequest request) {
         String message = ex.getConstraintViolations().stream()
                 .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
                 .distinct()
                 .collect(Collectors.joining("; "));
-        return ResponseEntity.badRequest().body(ApiResponse.error(message, "VALIDATION_ERROR", request.getRequestURI()));
+        log.warn("Constraint violation on [{} {}]: {}", request.getMethod(), request.getRequestURI(), message);
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponseDto> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        String msg = "Required parameter '" + ex.getParameterName() + "' is missing.";
+        log.warn("Missing parameter on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
+        return buildResponse(HttpStatus.BAD_REQUEST, msg, request);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponseDto> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+        String msg = "Invalid format for parameter '" + ex.getName() + "'. Expected type: " + requiredType;
+        log.warn("Type mismatch on [{} {}]: {}", request.getMethod(), request.getRequestURI(), msg);
+        return buildResponse(HttpStatus.BAD_REQUEST, msg, request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponseDto> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        log.warn("Max upload size exceeded on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE, "File size exceeds the allowed server limit.", request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleDataIntegrityViolationException(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
         Throwable cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause() : ex;
         String message = resolveDataIntegrityMessage(cause);
         HttpStatus status = isUniqueViolation(cause) ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
 
-        log.warn("Data integrity violation on [{} {}]: {}", request.getMethod(), request.getRequestURI(), cause.getMessage(), ex);
-
-        return ResponseEntity.status(status).body(ApiResponse.error(message, request.getRequestURI()));
+        log.warn("Data integrity violation on [{} {}]: {}", request.getMethod(), request.getRequestURI(), cause.getMessage());
+        return buildResponse(status, message, request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleAccessDeniedException(
+            AccessDeniedException ex, HttpServletRequest request) {
         log.warn("Access denied on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied.", request.getRequestURI()));
+        return buildResponse(HttpStatus.FORBIDDEN, "Access denied.", request);
     }
 
     @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDataAccessException(
+    public ResponseEntity<ErrorResponseDto> handleDataAccessException(
             DataAccessException ex, HttpServletRequest request) {
         log.error("Database access failure on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(
-                "The database service is temporarily unavailable. Please try again later.",
-                "DATABASE_UNAVAILABLE",
-                request.getRequestURI()));
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE,
+                "The database service is temporarily unavailable. Please try again later.", request);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleUncaughtException(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleGeneralException(
+            Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception on [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                ApiResponse.error("An unexpected internal error occurred.", request.getRequestURI())
-        );
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected internal error occurred.", request);
     }
 
-    // --- MERGED LOGIC: Handles both Tenant/Admin rules AND Batch Checksum rules ---
+    // --- Helper Methods ---
+
+    private ResponseEntity<ErrorResponseDto> buildResponse(HttpStatus status, String message, HttpServletRequest request) {
+        ErrorResponseDto errorDto = ErrorResponseDto.of(
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                request != null ? request.getRequestURI() : ""
+        );
+        return ResponseEntity.status(status).body(errorDto);
+    }
+
     private String resolveDataIntegrityMessage(Throwable cause) {
         String msg = safeDatabaseMessage(cause.getMessage());
         if (msg == null) {

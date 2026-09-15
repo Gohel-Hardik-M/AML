@@ -10,14 +10,14 @@ export const authGuard: CanActivateFn = (_route, state) => {
     return router.createUrlTree(['/login']);
   }
 
-  const isResetPasswordRoute = state ? state.url.startsWith('/reset-password') : false;
-  if (auth.mustChangePassword() && !isResetPasswordRoute) {
+  const url = state ? state.url : '';
+  const isPasswordChangeRoute = url.startsWith('/reset-password') || url.startsWith('/change-password');
+
+  // If user has a temporary password, force them to change password first
+  if (auth.mustChangePassword() && !isPasswordChangeRoute) {
     return router.createUrlTree(['/reset-password']);
   }
-  if (!auth.mustChangePassword() && isResetPasswordRoute) {
-    const defaultRoute = auth.currentRole() === 'SYSTEM_ADMIN' ? '/master' : '/dashboard';
-    return router.createUrlTree([defaultRoute]);
-  }
 
+  // Authenticated users are free to change their password anytime!
   return true;
 };

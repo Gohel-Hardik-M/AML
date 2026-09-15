@@ -6,9 +6,6 @@ import lombok.Data;
 
 import java.util.List;
 
-/**
- * DTO for System Admin to allocate (assign) or remove rules to/from a tenant.
- */
 @Data
 public class TenantRuleAllocationDto {
 

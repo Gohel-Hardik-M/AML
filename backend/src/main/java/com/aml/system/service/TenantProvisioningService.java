@@ -57,22 +57,17 @@ public class TenantProvisioningService {
                 resultSet.getString("tenant_id"),
                 resultSet.getString("bank_name"),
                 resultSet.getBoolean("is_active"),
-                resultSet.getTimestamp("created_at") == null
-                    ? null
-                    : resultSet.getTimestamp("created_at").toInstant()
+                resultSet.getTimestamp("created_at") == null ? null
+                        : resultSet.getTimestamp("created_at").toInstant()
             )
         );
         }
 
     /**
      * Onboards a new bank tenant.
-     *
-     * Steps:
      * 1. Create DB + run Flyway migrations
      * 2. Create the Bank Admin user
-     * 3. Send email with temp password (SYNCHRONOUS — if this fails, everything rolls back)
-     *
-     * If email fails → admin user is deleted → tenant DB is dropped → registry entry removed.
+     * 3. Send email with temp password  if this fails, everything rolls back
      */
     public String onboardNewBank(TenantOnboardRequestDto request) {
         String tenantId = request.getTenantCode().trim().toUpperCase(Locale.ROOT);
@@ -122,7 +117,6 @@ public class TenantProvisioningService {
                 throw new AmlBusinessException("Unable to create tenant administrator.", HttpStatus.INTERNAL_SERVER_ERROR);
             }
 
-            // Step 5: Send email SYNCHRONOUSLY — if this fails, we rollback everything
             try {
                 emailService.sendOnboardingEmail(adminEmail, bankName, tempPassword);
             } catch (Exception emailError) {

@@ -5,7 +5,12 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ToastService } from '../../toast.service';
 
-@Component({ selector: 'app-reset-password', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './reset-password.component.html' })
+@Component({
+  selector: 'app-reset-password',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './reset-password.component.html'
+})
 export class ResetPasswordComponent {
   currentPassword = '';
   newPassword = '';
@@ -16,7 +21,7 @@ export class ResetPasswordComponent {
   loading = false;
   errorMessage = '';
 
-  private auth = inject(AuthService);
+  public auth = inject(AuthService);
   private router = inject(Router);
   private toast = inject(ToastService);
   private changeDetector = inject(ChangeDetectorRef);
@@ -41,6 +46,11 @@ export class ResetPasswordComponent {
     });
   }
 
+  cancel() {
+    const target = this.auth.currentRole() === 'SYSTEM_ADMIN' ? '/master' : '/dashboard';
+    this.router.navigate([target]);
+  }
+
   logout() {
     this.auth.logout();
   }
@@ -51,6 +61,7 @@ export class ResetPasswordComponent {
       try {
         const parsed = JSON.parse(error);
         if (parsed?.message) return parsed.message;
+        if (parsed?.error) return parsed.error;
       } catch {}
       return error;
     }
@@ -58,10 +69,12 @@ export class ResetPasswordComponent {
       try {
         const parsed = JSON.parse(error.error);
         if (parsed?.message) return parsed.message;
+        if (parsed?.error) return parsed.error;
       } catch {}
       return error.error;
     }
     if (error.error?.message) return error.error.message;
+    if (error.error?.error) return error.error.error;
     if (error.message) return error.message;
     return 'Unable to update password. Please check your current password.';
   }

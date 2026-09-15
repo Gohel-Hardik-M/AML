@@ -1,18 +1,19 @@
 package com.aml.system.controller;
 
-import com.aml.system.dto.ApiResponse;
 import com.aml.system.dto.auth.*;
-import com.aml.system.exception.AmlBusinessException;
+import com.aml.system.exception.BadRequestException;
+import com.aml.system.exception.UnauthorizedException;
 import com.aml.system.multitenancy.TenantContextHolder;
 import com.aml.system.multitenancy.TenantRoutingDataSource;
 import com.aml.system.service.AuthService;
 import com.aml.system.service.MasterAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -31,7 +32,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponseDto>> login(
+    public ResponseEntity<LoginResponseDto> login(
             @Valid @RequestBody LoginRequestDto request,
             HttpServletRequest httpRequest
     ) {
@@ -41,56 +42,53 @@ public class AuthController {
             request.setTenantId(tenantId);
         }
         if (!routingDataSource.hasTenant(tenantId)) {
-            throw new AmlBusinessException("Tenant '" + tenantId + "' does not exist or is not active.", HttpStatus.BAD_REQUEST);
+            throw new BadRequestException("Tenant '" + tenantId + "' does not exist or is not active.");
         }
 
         try {
-
             TenantContextHolder.setTenantId(tenantId);
-
-            // 2. Call the service
             LoginResponseDto response = authService.login(request, httpRequest);
-            return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
-
+            return ResponseEntity.ok(response);
         } finally {
-
             TenantContextHolder.clear();
         }
     }
 
-    @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(
+    @PostMapping({"/reset-password", "/change-password"})
+    public ResponseEntity<Map<String, String>> resetPassword(
             @Valid @RequestBody PasswordResetDto request,
             HttpServletRequest httpRequest,
             Principal principal
     ) {
         String tenantId = TenantContextHolder.getTenantId();
         if (principal == null || tenantId == null || tenantId.isBlank()) {
-            throw new AmlBusinessException("Authenticated user context is required.", HttpStatus.UNAUTHORIZED);
+            throw new UnauthorizedException("Authenticated user context is required.");
         }
+
+        if ("MASTER".equalsIgnoreCase(tenantId)) {
+            masterAuthService.resetMasterPassword(request, principal.getName(), httpRequest);
+            return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
+        }
+
         if (!routingDataSource.hasTenant(tenantId)) {
-            throw new AmlBusinessException("Authenticated tenant does not exist or is not active.", HttpStatus.BAD_REQUEST);
+            throw new BadRequestException("Authenticated tenant does not exist or is not active.");
         }
 
         try {
-            // 1. Set context before transaction
             TenantContextHolder.setTenantId(tenantId);
-
-            // 2. Call the service
             authService.resetPassword(request, principal.getName(), tenantId, httpRequest);
-            return ResponseEntity.ok(ApiResponse.success("Password updated successfully. You can now log in."));
-
+            return ResponseEntity.ok(Map.of("message", "Password updated successfully. You can now log in."));
         } finally {
             TenantContextHolder.clear();
         }
     }
 
     @PostMapping("/master/login")
-    public ResponseEntity<ApiResponse<LoginResponseDto>> masterLogin(
+    public ResponseEntity<LoginResponseDto> masterLogin(
             @Valid @RequestBody MasterLoginRequestDto request,
             HttpServletRequest httpRequest
     ) {
         LoginResponseDto response = masterAuthService.masterLogin(request, httpRequest);
-        return ResponseEntity.ok(ApiResponse.success(response, "Master login successful"));
+        return ResponseEntity.ok(response);
     }
 }

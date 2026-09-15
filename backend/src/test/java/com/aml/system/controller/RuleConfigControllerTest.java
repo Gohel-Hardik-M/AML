@@ -39,7 +39,7 @@ class RuleConfigControllerTest {
     private RuleConfigService ruleConfigService;
 
     @Test
-    @DisplayName("GET /bank-admin/rules: Tenant admin retrieves rule configurations")
+    @DisplayName("GET /bank-admin/rules: Tenant admin retrieves rule configurations directly")
     @WithMockUser(roles = "TENANT_ADMIN")
     void getTenantRules_success() throws Exception {
         TenantRuleConfig config = TenantRuleConfig.builder()
@@ -52,12 +52,11 @@ class RuleConfigControllerTest {
 
         mockMvc.perform(get("/api/v1/bank-admin/rules"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].ruleCode").value("VELOCITY_001"));
+                .andExpect(jsonPath("$[0].ruleCode").value("VELOCITY_001"));
     }
 
     @Test
-    @DisplayName("GET /bank-admin/rules/{ruleCode}: Fetches single rule by code")
+    @DisplayName("GET /bank-admin/rules/{ruleCode}: Fetches single rule by code directly")
     @WithMockUser(roles = "TENANT_ADMIN")
     void getRuleByCode_success() throws Exception {
         TenantRuleConfig config = TenantRuleConfig.builder()
@@ -70,11 +69,11 @@ class RuleConfigControllerTest {
 
         mockMvc.perform(get("/api/v1/bank-admin/rules/STRUCTURING_001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.ruleCode").value("STRUCTURING_001"));
+                .andExpect(jsonPath("$.ruleCode").value("STRUCTURING_001"));
     }
 
     @Test
-    @DisplayName("PUT /bank-admin/rules/{ruleCode}: Updates configuration with valid values")
+    @DisplayName("PUT /bank-admin/rules/{ruleCode}: Updates configuration with valid values directly")
     @WithMockUser(roles = "TENANT_ADMIN")
     void updateRuleConfig_validValues_success() throws Exception {
         RuleConfigUpdateDto dto = new RuleConfigUpdateDto();
@@ -99,8 +98,7 @@ class RuleConfigControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.windowMinutes").value(45));
+                .andExpect(jsonPath("$.windowMinutes").value(45));
     }
 
     @Test

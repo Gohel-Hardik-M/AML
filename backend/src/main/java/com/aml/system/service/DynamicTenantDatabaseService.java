@@ -128,7 +128,7 @@ public class DynamicTenantDatabaseService {
 
             if (routingRegistered) {
                 try {
-                    //remove the hikaricp if added then in tenantroutingfile
+                    //remove the hikaricp if added in tenantroutingfile
                     routingDataSource.removeTenantDataSource(tenantId);
                 } catch (Exception removeEx) {
                     log.error("Compensation: failed to remove datasource for '{}': {}", tenantId, removeEx.getMessage());
