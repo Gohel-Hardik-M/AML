@@ -212,7 +212,6 @@ public class TenantRuleAllocationService {
             case "STRUCTURING_001" -> "Structuring / Smurfing Cash Deposits";
             case "VELOCITY_001" -> "Rapid Transaction Velocity Check";
             case "CROSS_BORDER_001" -> "Cross-Border High Value Transfer";
-            case "CRYPTO_001" -> "Cryptocurrency Transaction Pattern";
             case "GEO_RISK_001" -> "High-Risk Geographic Route";
             case "SMURFING_001" -> "Smurfing Layering Network";
             default -> ruleCode;

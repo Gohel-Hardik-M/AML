@@ -23,10 +23,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.stream.Collectors;
 
-/**
- * Global exception handler providing a clean, consistent error flow.
- * Every exception is wrapped into ErrorResponseDto containing status code, error, message, and path.
- */
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
