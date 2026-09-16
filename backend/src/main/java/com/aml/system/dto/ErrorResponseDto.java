@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
-/**
- * Standard unified error response returned by GlobalExceptionHandler.
- */
+
 @Data
 @Builder
 @NoArgsConstructor

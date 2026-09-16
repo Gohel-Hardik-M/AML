@@ -70,15 +70,6 @@ public class BatchService {
             this.userRepository = userRepository;
         }
 
-        public BatchService(
-                BatchRepository batchRepository,
-                TransactionRepository transactionRepository,
-                ExcelTransactionReader excelTransactionReader,
-                RuleEngineService ruleEngineService,
-                AlertService alertService,
-                TenantRuleConfigRepository tenantRuleConfigRepository) {
-            this(batchRepository, transactionRepository, excelTransactionReader, ruleEngineService, alertService, tenantRuleConfigRepository, null);
-        }
 
         @Transactional(rollbackOn = Exception.class)
         public Batch processUpload(MultipartFile file) throws IOException {
